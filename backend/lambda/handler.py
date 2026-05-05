@@ -36,6 +36,9 @@ def _get_nfl_state() -> tuple[int, int]:
     """
     Resolve season + fantasy week from Sleeper NFL state.
 
+    When week is 0, season_type is off/pre, or week is unset, maps to the
+    previous season and week 18 so downstream fetches use real NFL data.
+
     @returns {[number, number]} Tuple of (season_year, week_number)
     """
     url = f"{SLEEPER_BASE}/state/nfl"
@@ -52,8 +55,14 @@ def _get_nfl_state() -> tuple[int, int]:
     else:
         week = int(os.getenv("NFL_DEFAULT_WEEK", "1"))
 
-    # If it's offseason (week 0 or season hasn't started), use last season's final week
-    if week == 0 or week is None:
+    season_type_raw = data.get("season_type")
+    if isinstance(season_type_raw, str):
+        season_type = season_type_raw.lower()
+    else:
+        season_type = ""
+
+    # Offseason / pre: use last season's final week so stats/projections still resolve
+    if week == 0 or week is None or season_type in ("off", "pre"):
         season = season - 1
         week = 18  # last regular season week
 
