@@ -1,8 +1,11 @@
 """Routes for player listing and stats history."""
 
 import os
+import threading
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,6 +23,31 @@ _sleeper_players_cache: dict[str, dict] = {}
 _sleeper_players_cached_at: datetime | None = None
 _weekly_stats_cache: dict[str, dict] = {}
 _weekly_stats_cached_at: dict[str, datetime] = {}
+_week_stats_lock = threading.Lock()
+
+PLAYER_HISTORY_START_SEASON = 2020
+PLAYER_HISTORY_MAX_SEASON = 2035
+PLAYER_HISTORY_FETCH_WORKERS = int(os.getenv("PLAYER_HISTORY_FETCH_WORKERS", "12"))
+
+# Sleeper still marks some clearly retired players as Active with no NFL team; supplement with ids.
+_RETIRED_ACTIVE_EXTRA_IDS: frozenset[str] = frozenset(
+    {
+        "515",  # Rob Gronkowski
+        "947",  # Julio Jones
+        "536",  # Antonio Brown
+        "856",  # J.J. Watt
+        "147",  # DeSean Jackson
+        "538",  # Emmanuel Sanders
+    }
+)
+
+_RETIRED_IR_STATUSES: frozenset[str] = frozenset(
+    {
+        "Injured Reserve",
+        "Physically Unable to Perform",
+        "Non Football Injury",
+    }
+)
 
 TEAM_CONFERENCE_MAP = {
     "ARI": "NFC",
@@ -315,30 +343,177 @@ def _to_float(value: object) -> float:
         return 0.0
 
 
+def _parse_int_field(raw: object) -> int | None:
+    """Parse Sleeper numeric fields that may arrive as str or int."""
+    if raw in (None, ""):
+        return None
+    try:
+        return int(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _sleeper_profile_team_missing(profile: dict) -> bool:
+    """True when Sleeper has no current NFL team on the player profile."""
+    team = profile.get("team")
+    return team in (None, "")
+
+
+def _sleeper_player_is_retired(sleeper_id: str, profile: dict | None) -> bool:
+    """
+    Infer whether a player should be shown as retired (not a free agent).
+
+    Sleeper often leaves notable retirees as status Active with null team; we use
+    status, veteran heuristics, and a small id override list.
+    """
+    sid = str(sleeper_id).strip()
+    if not profile or not isinstance(profile, dict):
+        return sid in _RETIRED_ACTIVE_EXTRA_IDS
+
+    status = profile.get("status") or ""
+    if status == "Inactive":
+        return True
+
+    if status in _RETIRED_IR_STATUSES and _sleeper_profile_team_missing(profile):
+        age = _parse_int_field(profile.get("age"))
+        years_exp = _parse_int_field(profile.get("years_exp"))
+        if (
+            years_exp is not None
+            and years_exp >= 8
+            and age is not None
+            and age >= 28
+        ):
+            return True
+
+    if not _sleeper_profile_team_missing(profile):
+        return False
+
+    if sid in _RETIRED_ACTIVE_EXTRA_IDS:
+        return True
+
+    age = _parse_int_field(profile.get("age"))
+    years_exp = _parse_int_field(profile.get("years_exp"))
+    if age is None or years_exp is None:
+        return False
+    if years_exp >= 15 and age >= 37:
+        return True
+    if years_exp >= 12 and age >= 42:
+        return True
+    return False
+
+
 def _fetch_week_stats(season_type: str, season: int, week: int) -> dict[str, dict]:
     """Fetch and cache one week of Sleeper stats."""
     cache_key = f"{season_type}:{season}:{week}"
-    cached_at = _weekly_stats_cached_at.get(cache_key)
-    if (
-        cached_at is not None
-        and datetime.now(UTC) - cached_at < SLEEPER_CACHE_TTL
-        and cache_key in _weekly_stats_cache
-    ):
-        return _weekly_stats_cache[cache_key]
+    with _week_stats_lock:
+        cached_at = _weekly_stats_cached_at.get(cache_key)
+        if (
+            cached_at is not None
+            and datetime.now(UTC) - cached_at < SLEEPER_CACHE_TTL
+            and cache_key in _weekly_stats_cache
+        ):
+            return _weekly_stats_cache[cache_key]
 
     response = requests.get(
         f"{SLEEPER_BASE}/stats/nfl/{season_type}/{season}/{week}",
         timeout=60,
     )
     if response.status_code == 404:
-        return {}
-    response.raise_for_status()
-    payload = response.json()
+        payload: dict = {}
+    else:
+        response.raise_for_status()
+        raw = response.json()
+        payload = raw if isinstance(raw, dict) else {}
+
+    with _week_stats_lock:
+        cached_at = _weekly_stats_cached_at.get(cache_key)
+        if (
+            cached_at is not None
+            and datetime.now(UTC) - cached_at < SLEEPER_CACHE_TTL
+            and cache_key in _weekly_stats_cache
+        ):
+            return _weekly_stats_cache[cache_key]
+        _weekly_stats_cache[cache_key] = payload
+        _weekly_stats_cached_at[cache_key] = datetime.now(UTC)
+        return payload
+
+
+def _history_season_end_year() -> int:
+    """Upper bound NFL season year for history pulls (calendar year label)."""
+    return min(datetime.now(UTC).year, PLAYER_HISTORY_MAX_SEASON)
+
+
+def _json_safe_stat_blob(blob: dict) -> dict[str, Any]:
+    """Strip Sleeper weekly blob to JSON-serializable primitives for API responses."""
+    skip_prefixes = ("pos_rank_",)
+    out: dict[str, Any] = {}
+    for k, v in blob.items():
+        if any(k.startswith(p) for p in skip_prefixes):
+            continue
+        if v is None:
+            continue
+        if isinstance(v, bool):
+            out[k] = v
+        elif isinstance(v, str):
+            out[k] = v
+        elif isinstance(v, (int, float)):
+            out[k] = float(v)
+    return out
+
+
+def _fetch_single_week_player_blob(
+    task: tuple[str, str, int, int],
+) -> tuple[int, int, dict[str, Any] | None]:
+    """Load one week payload and return this player's stat blob if present."""
+    season_type, sid, season, week = task
+    payload = _fetch_week_stats(season_type, season, week)
     if not isinstance(payload, dict):
-        return {}
-    _weekly_stats_cache[cache_key] = payload
-    _weekly_stats_cached_at[cache_key] = datetime.now(UTC)
-    return payload
+        return season, week, None
+    blob = payload.get(sid)
+    if not isinstance(blob, dict) or not blob:
+        return season, week, None
+    return season, week, blob
+
+
+def _sleeper_weekly_player_stat_history(sleeper_id: str) -> list[PlayerStatHistory]:
+    """
+    Build 2020–present weekly rows from Sleeper NFL stats (actual_stats), merged later with DB projections.
+
+    Uses the shared week cache and parallel HTTP fetches; first load can take a few seconds cold.
+    """
+    sid = str(sleeper_id).strip()
+    end_y = _history_season_end_year()
+    tasks: list[tuple[str, str, int, int]] = [
+        ("regular", sid, season, week)
+        for season in range(PLAYER_HISTORY_START_SEASON, end_y + 1)
+        for week in range(1, 19)
+    ]
+    with ThreadPoolExecutor(max_workers=PLAYER_HISTORY_FETCH_WORKERS) as pool:
+        raw = list(pool.map(_fetch_single_week_player_blob, tasks))
+
+    out: list[PlayerStatHistory] = []
+    for season, week, blob in raw:
+        if not blob:
+            continue
+        pts_raw = blob.get("pts_ppr")
+        pts: float | None
+        if pts_raw in (None, ""):
+            pts = None
+        else:
+            try:
+                pts = float(pts_raw)
+            except (TypeError, ValueError):
+                pts = None
+        out.append(
+            PlayerStatHistory(
+                season=season,
+                week=week,
+                points=pts,
+                projected_points=None,
+                actual_stats=_json_safe_stat_blob(blob),
+            )
+        )
+    return out
 
 
 def _season_weeks_for_split(split: str) -> tuple[str, range]:
@@ -384,12 +559,13 @@ def _build_leader_row(
     player = player_profile.get("full_name") or (
         f"{player_profile.get('first_name', '')} {player_profile.get('last_name', '')}".strip()
     )
-    row: dict[str, str | int | float | None] = {
+    row: dict[str, str | int | float | bool | None] = {
         "player": player,
         "team": team,
         "position": player_profile.get("position"),
         "gamesPlayed": int(aggregated.get("gamesPlayed", 0)),
         "sleeperId": sleeper_id,
+        "isRetired": _sleeper_player_is_retired(sleeper_id, player_profile),
     }
     row.update(aggregated)
 
@@ -484,28 +660,45 @@ def list_players(
         q = q.where(Player.position == position.upper())
     q = q.order_by(Player.name)
     rows = db.execute(q).all()
-    return [
-        PlayerOut(
-            id=player.id,
-            sleeper_id=player.sleeper_id,
-            name=player.name,
-            position=player.position,
-            team=player.team,
-            projected_points=projected_points,
+    players_map = _get_sleeper_players_map()
+    out: list[PlayerOut] = []
+    for player, projected_points in rows:
+        sp = players_map.get(str(player.sleeper_id))
+        fresh_team = sp.get("team") if sp else None
+        team = (
+            fresh_team
+            if fresh_team not in (None, "")
+            else player.team
         )
-        for player, projected_points in rows
-    ]
+        out.append(
+            PlayerOut(
+                id=player.id,
+                sleeper_id=player.sleeper_id,
+                name=player.name,
+                position=player.position,
+                team=team,
+                projected_points=projected_points,
+                is_retired=_sleeper_player_is_retired(player.sleeper_id, sp),
+            )
+        )
+    return out
 
 
 def _player_profile_out(pl: Player, stat_rows: list[PlayerStat]) -> PlayerOut:
     """Build PlayerOut with Sleeper enrichment for stats responses."""
     sleeper_profile = _get_sleeper_players_map().get(pl.sleeper_id, {})
+    fresh_team = sleeper_profile.get("team") if sleeper_profile else None
+    team = (
+        fresh_team
+        if fresh_team not in (None, "")
+        else pl.team
+    )
     return PlayerOut(
         id=pl.id,
         sleeper_id=pl.sleeper_id,
         name=pl.name,
         position=pl.position,
-        team=pl.team,
+        team=team,
         projected_points=stat_rows[-1].projected_points if stat_rows else None,
         college=sleeper_profile.get("college"),
         years_exp=(
@@ -519,6 +712,7 @@ def _player_profile_out(pl: Player, stat_rows: list[PlayerStat]) -> PlayerOut:
             else None
         ),
         injury_status=sleeper_profile.get("injury_status"),
+        is_retired=_sleeper_player_is_retired(pl.sleeper_id, sleeper_profile),
     )
 
 
@@ -529,17 +723,41 @@ def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
         .where(PlayerStat.player_id == pl.id)
         .order_by(PlayerStat.season, PlayerStat.week)
     ).all()
-    return PlayerStatsDetailOut(
-        player=_player_profile_out(pl, stat_rows),
-        stats=[
+    db_map = {(r.season, r.week): r for r in stat_rows}
+
+    merged_stats: list[PlayerStatHistory] = []
+    try:
+        sleeper_hist = _sleeper_weekly_player_stat_history(pl.sleeper_id)
+    except (requests.RequestException, OSError, ValueError):
+        sleeper_hist = []
+
+    if sleeper_hist:
+        for sh in sleeper_hist:
+            db_r = db_map.get((sh.season, sh.week))
+            merged_stats.append(
+                PlayerStatHistory(
+                    season=sh.season,
+                    week=sh.week,
+                    points=sh.points if sh.points is not None else (db_r.points if db_r else None),
+                    projected_points=db_r.projected_points if db_r else sh.projected_points,
+                    actual_stats=sh.actual_stats,
+                )
+            )
+    else:
+        merged_stats = [
             PlayerStatHistory(
                 week=s.week,
                 season=s.season,
                 points=s.points,
                 projected_points=s.projected_points,
+                actual_stats=None,
             )
             for s in stat_rows
-        ],
+        ]
+
+    return PlayerStatsDetailOut(
+        player=_player_profile_out(pl, stat_rows),
+        stats=merged_stats,
     )
 
 

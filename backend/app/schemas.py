@@ -1,6 +1,7 @@
 """Pydantic schemas for API responses."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -42,6 +43,7 @@ class PlayerOut(BaseModel):
     years_exp: int | None = None
     age: int | None = None
     injury_status: str | None = None
+    is_retired: bool = False
 
 
 class PlayerStatHistory(BaseModel):
@@ -51,6 +53,7 @@ class PlayerStatHistory(BaseModel):
     season: int
     points: float | None = None
     projected_points: float | None = None
+    actual_stats: dict[str, Any] | None = None
 
 
 class PlayerStatsDetailOut(BaseModel):
@@ -75,4 +78,4 @@ class PlayerLeadersOut(BaseModel):
     title: str
     main_tab: str
     columns: list[LeaderColumnOut]
-    rows: list[dict[str, str | int | float | None]]
+    rows: list[dict[str, str | int | float | bool | None]]

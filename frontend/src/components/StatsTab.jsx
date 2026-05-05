@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllPlayers, getSeasonLeaders } from "../api/client.js";
 import StatsDrawer from "./StatsDrawer.jsx";
-import { getTeamLogoUrl } from "../utils/media.js";
+import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
 
 /**
  * Build a deterministic player portrait URL from player name.
@@ -20,6 +20,17 @@ const getPlayerPortraitUrl = (playerName) =>
  * @returns {string} Primary team code.
  */
 const getPrimaryTeamCode = (teamValue) => teamValue.split("/")[0];
+
+/**
+ * Team abbreviation or status label for a season-leader row.
+ * @param {{ team?: string | null, isRetired?: boolean }} row Leader row from API.
+ * @returns {string} Team code, Retired, or em dash when unknown.
+ */
+const statRowTeamLabel = (row) => {
+  if (row.isRetired) return "Retired";
+  const t = row.team;
+  return t != null && String(t) !== "" ? String(t) : "—";
+};
 
 /**
  * Normalize player names so stat-table rows can map to API players.
@@ -422,6 +433,9 @@ const matchesConferenceFilter = (row, conferenceFilter) => {
   if (conferenceFilter === "All NFL") {
     return true;
   }
+  if (row.isRetired) {
+    return false;
+  }
   const teamCode = getPrimaryTeamCode(String(row.team ?? ""));
   const conference = TEAM_CONFERENCE_MAP[teamCode];
   return conference === conferenceFilter;
@@ -432,7 +446,7 @@ const matchesConferenceFilter = (row, conferenceFilter) => {
  * @param {{
  *   title: string,
  *   metricLabel: string,
- *   rows: Array<{rank:number, player:string, team:string, value:string, sleeperId?: string}>,
+ *   rows: Array<{rank:number, player:string, team:string, value:string, sleeperId?: string, isRetired?: boolean}>,
  *   onPlayerSelect: (payload: { playerId: number | null, sleeperId: string | null }) => void,
  *   getPlayerIdByName: (playerName: string) => number | null,
  *   onOpenStatSheet: (statType: string) => void
@@ -445,6 +459,7 @@ function StatLeadersTable({
   rows,
   onPlayerSelect,
   getPlayerIdByName,
+  getSleeperIdByName,
   onOpenStatSheet,
 }) {
   /**
@@ -464,17 +479,23 @@ function StatLeadersTable({
         <span>{metricLabel}</span>
       </header>
       <ul>
-        {rows.map((row) => (
+        {rows.map((row) => {
+          const resolvedSleeperId =
+            row.sleeperId != null
+              ? String(row.sleeperId)
+              : getSleeperIdByName(row.player);
+          const headshotUrl = getPlayerHeadshotUrl(resolvedSleeperId);
+          return (
           <li
             key={`${title}-${row.player}`}
             className={`grid grid-cols-[56px_1fr_auto] items-center gap-2 border-b border-slate-100 px-3 py-2 text-sm dark:border-slate-900 ${
-              getPlayerIdByName(row.player) != null || row.sleeperId != null
+              getPlayerIdByName(row.player) != null || resolvedSleeperId != null
                 ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60"
                 : ""
             }`}
             onClick={() => {
               const playerId = getPlayerIdByName(row.player);
-              const sleeperId = row.sleeperId != null ? String(row.sleeperId) : null;
+              const sleeperId = resolvedSleeperId;
               if (playerId != null) {
                 onPlayerSelect({ playerId, sleeperId: null });
               } else if (sleeperId) {
@@ -484,30 +505,43 @@ function StatLeadersTable({
           >
             <span className="font-medium text-slate-500 dark:text-slate-400">{row.rank}</span>
             <span className="flex min-w-0 items-center gap-2">
-              <img
-                src={getPlayerPortraitUrl(row.player)}
-                alt={`${row.player} avatar`}
-                className="h-7 w-7 rounded-full border border-slate-200 object-cover dark:border-slate-700"
-                loading="lazy"
-                onError={hideBrokenImage}
-              />
-              <img
-                src={getTeamLogoUrl(getPrimaryTeamCode(row.team)) ?? undefined}
-                alt={`${getPrimaryTeamCode(row.team)} logo`}
-                className="h-5 w-5 rounded-sm object-contain"
-                loading="lazy"
-                onError={hideBrokenImage}
-              />
+              {headshotUrl ? (
+                <img
+                  src={headshotUrl}
+                  alt={`${row.player} headshot`}
+                  className="h-7 w-7 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+                  loading="lazy"
+                  onError={hideBrokenImage}
+                />
+              ) : (
+                <img
+                  src={getPlayerPortraitUrl(row.player)}
+                  alt={`${row.player} avatar`}
+                  className="h-7 w-7 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+                  loading="lazy"
+                  onError={hideBrokenImage}
+                />
+              )}
+              {!row.isRetired && row.team ? (
+                <img
+                  src={getTeamLogoUrl(getPrimaryTeamCode(row.team)) ?? undefined}
+                  alt={`${getPrimaryTeamCode(row.team)} logo`}
+                  className="h-5 w-5 rounded-sm object-contain"
+                  loading="lazy"
+                  onError={hideBrokenImage}
+                />
+              ) : null}
               <span className="min-w-0 truncate font-medium text-blue-600 dark:text-blue-300">
                 {row.player}
                 <span className="ml-1 text-xs font-semibold text-slate-400 dark:text-slate-500">
-                  {row.team}
+                  {statRowTeamLabel(row)}
                 </span>
               </span>
             </span>
             <span className="font-semibold text-slate-700 dark:text-slate-200">{row.value}</span>
           </li>
-        ))}
+          );
+        })}
       </ul>
       <div className="px-3 py-2 text-center">
         <button
@@ -554,6 +588,7 @@ function PlayerStatsSheet({
   onConferenceFilterChange,
   onPlayerSelect,
   getPlayerIdByName,
+  getSleeperIdByName,
   seasonLeadersQuery,
 }) {
   const [sortKey, setSortKey] = useState("rank");
@@ -701,13 +736,19 @@ function PlayerStatsSheet({
                 <tr
                   key={`${selectedStatType}-${row.rank}-${row.player}`}
                   className={`border-b border-slate-100 text-slate-700 dark:border-slate-900 dark:text-slate-200 ${
-                    getPlayerIdByName(String(row.player ?? "")) != null || row.sleeperId != null
+                    getPlayerIdByName(String(row.player ?? "")) != null ||
+                    (row.sleeperId != null
+                      ? String(row.sleeperId)
+                      : getSleeperIdByName(String(row.player ?? ""))) != null
                       ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-950/50"
                       : ""
                   }`}
                   onClick={() => {
                     const playerId = getPlayerIdByName(String(row.player ?? ""));
-                    const sleeperId = row.sleeperId != null ? String(row.sleeperId) : null;
+                    const sleeperId =
+                      row.sleeperId != null
+                        ? String(row.sleeperId)
+                        : getSleeperIdByName(String(row.player ?? ""));
                     if (playerId != null) {
                       onPlayerSelect({ playerId, sleeperId: null });
                     } else if (sleeperId) {
@@ -718,22 +759,57 @@ function PlayerStatsSheet({
                   {statConfig.columns.map((column) => {
                     const cellValue = row[column.key];
                     if (column.key === "player") {
+                      const sleeperId =
+                        row.sleeperId != null
+                          ? String(row.sleeperId)
+                          : getSleeperIdByName(String(row.player ?? ""));
+                      const headshotUrl = getPlayerHeadshotUrl(sleeperId);
                       return (
                         <td key={column.key} className="px-2 py-2">
                           <div className="flex items-center gap-2">
-                            <img
-                              src={getTeamLogoUrl(getPrimaryTeamCode(String(row.team ?? ""))) ?? undefined}
-                              alt={`${getPrimaryTeamCode(String(row.team ?? ""))} logo`}
-                              className="h-4 w-4 object-contain"
-                              loading="lazy"
-                            />
+                            {headshotUrl ? (
+                              <img
+                                src={headshotUrl}
+                                alt={`${String(cellValue ?? "Player")} headshot`}
+                                className="h-5 w-5 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <img
+                                src={getPlayerPortraitUrl(String(cellValue ?? "Player"))}
+                                alt={`${String(cellValue ?? "Player")} avatar`}
+                                className="h-5 w-5 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
+                              />
+                            )}
+                            {!row.isRetired && row.team ? (
+                              <img
+                                src={getTeamLogoUrl(getPrimaryTeamCode(String(row.team))) ?? undefined}
+                                alt={`${getPrimaryTeamCode(String(row.team))} logo`}
+                                className="h-4 w-4 object-contain"
+                                loading="lazy"
+                              />
+                            ) : null}
                             <span className="font-semibold text-blue-600 dark:text-blue-300">
                               {String(cellValue ?? "—")}
                             </span>
                             <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                              {String(row.team ?? "—")}
+                              {statRowTeamLabel(row)}
                             </span>
                           </div>
+                        </td>
+                      );
+                    }
+                    if (column.key === "team") {
+                      return (
+                        <td key={column.key} className="px-2 py-2">
+                          {statRowTeamLabel(row)}
                         </td>
                       );
                     }
@@ -820,6 +896,19 @@ export default function StatsTab() {
     });
     return index;
   }, [playersQuery.data]);
+  const sleeperIdByNormalizedName = useMemo(() => {
+    const index = new Map();
+    (playersQuery.data ?? []).forEach((player) => {
+      if (!player?.name || !player?.sleeper_id) {
+        return;
+      }
+      const key = normalizeName(player.name);
+      if (!index.has(key)) {
+        index.set(key, String(player.sleeper_id));
+      }
+    });
+    return index;
+  }, [playersQuery.data]);
 
   /**
    * Resolve a leaderboard row name to a player id.
@@ -827,6 +916,13 @@ export default function StatsTab() {
    * @returns {number | null} Player id for drawer lookup.
    */
   const getPlayerIdByName = (playerName) => playerIdByNormalizedName.get(normalizeName(playerName)) ?? null;
+  /**
+   * Resolve a leaderboard row name to a Sleeper player id.
+   * @param {string} playerName Player full name.
+   * @returns {string | null} Sleeper id for headshot/profile lookup.
+   */
+  const getSleeperIdByName = (playerName) =>
+    sleeperIdByNormalizedName.get(normalizeName(playerName)) ?? null;
 
   /**
    * Open the player profile modal from a stats row (DB id preferred, else Sleeper id).
@@ -924,6 +1020,7 @@ export default function StatsTab() {
           onConferenceFilterChange={setSelectedConferenceFilter}
           onPlayerSelect={openStatsPlayerProfile}
           getPlayerIdByName={getPlayerIdByName}
+          getSleeperIdByName={getSleeperIdByName}
           seasonLeadersQuery={seasonLeadersQuery}
         />
       ) : null}
@@ -961,6 +1058,7 @@ export default function StatsTab() {
                 rows={group.rows}
                 onPlayerSelect={openStatsPlayerProfile}
                 getPlayerIdByName={getPlayerIdByName}
+                getSleeperIdByName={getSleeperIdByName}
                 onOpenStatSheet={openStatSheet}
               />
             ))}
@@ -975,6 +1073,7 @@ export default function StatsTab() {
                 rows={group.rows}
                 onPlayerSelect={openStatsPlayerProfile}
                 getPlayerIdByName={getPlayerIdByName}
+                getSleeperIdByName={getSleeperIdByName}
                 onOpenStatSheet={openStatSheet}
               />
             ))}

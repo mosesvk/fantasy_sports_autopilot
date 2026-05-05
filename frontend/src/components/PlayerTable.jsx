@@ -107,10 +107,10 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
+        <table className="min-w-full text-left text-base">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400">
-              <th className="py-2 pr-4">
+            <tr className="border-b border-slate-200 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <th className="py-3 pr-4">
                 <button
                   type="button"
                   className="hover:text-slate-900 dark:hover:text-white"
@@ -119,7 +119,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   Player
                 </button>
               </th>
-              <th className="py-2 pr-4">
+              <th className="py-3 pr-4">
                 <button
                   type="button"
                   className="hover:text-slate-900 dark:hover:text-white"
@@ -128,7 +128,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   Pos
                 </button>
               </th>
-              <th className="py-2 pr-4">
+              <th className="py-3 pr-4">
                 <button
                   type="button"
                   className="hover:text-slate-900 dark:hover:text-white"
@@ -137,7 +137,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   Team
                 </button>
               </th>
-              <th className="py-2 text-right">
+              <th className="py-3 text-right">
                 <button
                   type="button"
                   className="hover:text-slate-900 dark:hover:text-white"
@@ -162,32 +162,32 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   className="cursor-pointer border-b border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-950/60"
                   onClick={() => onPlayerClick?.(p.id)}
                 >
-                  <td className="py-2 pr-4 font-medium">
-                    <div className="flex items-center gap-2">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3">
                       <img
                         src={getPlayerHeadshotUrl(p.sleeper_id) ?? undefined}
                         alt={`${p.name} headshot`}
-                        className="h-7 w-7 rounded-full border border-slate-300 object-cover dark:border-slate-700"
+                        className="h-10 w-10 shrink-0 rounded-full border-2 border-slate-300 object-cover dark:border-slate-600 sm:h-11 sm:w-11"
                         loading="lazy"
                         onError={hideBrokenImage}
                       />
-                      <span>{p.name}</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{p.name}</span>
                     </div>
                   </td>
-                  <td className="py-2 pr-4">{p.position}</td>
-                  <td className="py-2 pr-4">
-                    <div className="flex items-center gap-2">
+                  <td className="py-3 pr-4">{p.position}</td>
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3">
                       <img
                         src={getTeamLogoUrl(p.team) ?? undefined}
                         alt={p.team ? `${p.team} logo` : "No team"}
-                        className="h-5 w-5 rounded-sm object-contain"
+                        className="h-9 w-9 shrink-0 rounded-sm object-contain sm:h-10 sm:w-10"
                         loading="lazy"
                         onError={hideBrokenImage}
                       />
-                      <span>{p.team ?? "—"}</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{p.team ?? "—"}</span>
                     </div>
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="py-3 text-right">
                     {p.projected_points != null ? (
                       <span className="font-medium text-blue-600 dark:text-blue-400">
                         {p.projected_points.toFixed(1)}

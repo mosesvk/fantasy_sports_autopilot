@@ -69,7 +69,7 @@ export default function LineupCard({ lineup, onPlayerClick }) {
           return (
             <div
               key={slot}
-              className={`flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60 ${
+              className={`flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60 ${
                 row ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/80" : ""
               }`}
               onClick={() => {
@@ -91,28 +91,30 @@ export default function LineupCard({ lineup, onPlayerClick }) {
                 ) : null}
               </div>
               <div className="text-right">
-                <div className="flex items-center justify-end gap-2 font-medium text-slate-900 dark:text-white">
+                <div className="flex items-center justify-end gap-3 text-slate-900 dark:text-white">
                   {row ? (
                     <>
                       <img
                         src={getTeamLogoUrl(row.team) ?? undefined}
                         alt={row.team ? `${row.team} logo` : "No team"}
-                        className="h-5 w-5 rounded-sm object-contain"
+                        className="h-9 w-9 shrink-0 rounded-sm object-contain sm:h-10 sm:w-10"
                         loading="lazy"
                         onError={hideBrokenImage}
                       />
                       <img
                         src={getPlayerHeadshotUrl(row.sleeper_id) ?? undefined}
                         alt={`${row.name} headshot`}
-                        className="h-7 w-7 rounded-full border border-slate-300 object-cover dark:border-slate-700"
+                        className="h-10 w-10 shrink-0 rounded-full border-2 border-slate-300 object-cover dark:border-slate-600 sm:h-11 sm:w-11"
                         loading="lazy"
                         onError={hideBrokenImage}
                       />
                     </>
                   ) : null}
-                  <span>{row?.name ?? "—"}</span>
+                  <span className="text-base font-semibold leading-tight sm:text-lg">
+                    {row?.name ?? "—"}
+                  </span>
                 </div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
+                <div className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
                   {row?.projected_points != null
                     ? `${row.projected_points.toFixed(1)} pts`
                     : "—"}
