@@ -82,20 +82,20 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-lg font-semibold text-white">All players</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">All players</h3>
         <div className="flex flex-wrap gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name..."
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 sm:w-56"
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 sm:w-56"
           />
           <select
             value={position}
             onChange={(e) => setPosition(e.target.value)}
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">All positions</option>
             {["QB", "RB", "WR", "TE", "K", "DEF"].map((p) => (
@@ -109,11 +109,11 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-800 text-slate-400">
+            <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <th className="py-2 pr-4">
                 <button
                   type="button"
-                  className="hover:text-white"
+                  className="hover:text-slate-900 dark:hover:text-white"
                   onClick={() => toggleSort("name")}
                 >
                   Player
@@ -122,7 +122,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
               <th className="py-2 pr-4">
                 <button
                   type="button"
-                  className="hover:text-white"
+                  className="hover:text-slate-900 dark:hover:text-white"
                   onClick={() => toggleSort("position")}
                 >
                   Pos
@@ -131,7 +131,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
               <th className="py-2 pr-4">
                 <button
                   type="button"
-                  className="hover:text-white"
+                  className="hover:text-slate-900 dark:hover:text-white"
                   onClick={() => toggleSort("team")}
                 >
                   Team
@@ -140,7 +140,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
               <th className="py-2 text-right">
                 <button
                   type="button"
-                  className="hover:text-white"
+                  className="hover:text-slate-900 dark:hover:text-white"
                   onClick={() => toggleSort("projected_points")}
                 >
                   Proj Pts
@@ -151,7 +151,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="py-6 text-center text-slate-500">
+                <td colSpan={4} className="py-6 text-center text-slate-500 dark:text-slate-500">
                   Loading players...
                 </td>
               </tr>
@@ -159,7 +159,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
               rowsForPage.map((p) => (
                 <tr
                   key={p.id}
-                  className="cursor-pointer border-b border-slate-900/80 text-slate-200 hover:bg-slate-950/60"
+                  className="cursor-pointer border-b border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-950/60"
                   onClick={() => onPlayerClick?.(p.id)}
                 >
                   <td className="py-2 pr-4 font-medium">
@@ -167,7 +167,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                       <img
                         src={getPlayerHeadshotUrl(p.sleeper_id) ?? undefined}
                         alt={`${p.name} headshot`}
-                        className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                        className="h-7 w-7 rounded-full border border-slate-300 object-cover dark:border-slate-700"
                         loading="lazy"
                         onError={hideBrokenImage}
                       />
@@ -189,18 +189,18 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   </td>
                   <td className="py-2 text-right">
                     {p.projected_points != null ? (
-                      <span className="font-medium text-blue-400">
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
                         {p.projected_points.toFixed(1)}
                       </span>
                     ) : (
-                      <span className="text-slate-600">—</span>
+                      <span className="text-slate-400 dark:text-slate-600">—</span>
                     )}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="py-6 text-center text-slate-500">
+                <td colSpan={4} className="py-6 text-center text-slate-500 dark:text-slate-500">
                   No players match the current filters.
                 </td>
               </tr>
@@ -208,7 +208,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
           </tbody>
         </table>
       </div>
-      <div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
         <div>
           Showing {totalRows === 0 ? 0 : start + 1}-{Math.min(end, totalRows)} of {totalRows}
         </div>
@@ -217,18 +217,18 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
             type="button"
             onClick={() => setPageWithinBounds(currentPage - 1)}
             disabled={currentPage === 1}
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200"
           >
             Prev
           </button>
-          <span className="text-slate-300">
+          <span className="text-slate-700 dark:text-slate-300">
             Page {currentPage} of {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setPageWithinBounds(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200"
           >
             Next
           </button>

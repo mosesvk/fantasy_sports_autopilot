@@ -21,7 +21,7 @@ const posColor = (pos) => {
     K: "bg-rose-900/60 text-rose-200 border-rose-700",
     DEF: "bg-cyan-900/60 text-cyan-200 border-cyan-700",
   };
-  return map[pos] || "bg-slate-800 text-slate-200 border-slate-600";
+  return map[pos] || "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200";
 };
 
 /**
@@ -46,19 +46,19 @@ export default function LineupCard({ lineup }) {
   );
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-blue-950/40">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-lg dark:shadow-blue-950/40">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-white">Optimized lineup</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Optimized lineup</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Week {lineup.week} · Season {lineup.season}
           </p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-white">
+          <div className="text-2xl font-bold text-slate-900 dark:text-white">
             {lineup.total_projected_points?.toFixed(1) ?? "—"}
           </div>
-          <div className="text-xs uppercase tracking-wide text-slate-400">
+          <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             proj pts
           </div>
         </div>
@@ -69,10 +69,10 @@ export default function LineupCard({ lineup }) {
           return (
             <div
               key={slot}
-              className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3"
+              className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60"
             >
               <div className="flex items-center gap-3">
-                <span className="w-14 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span className="w-14 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">
                   {slot}
                 </span>
                 {row ? (
@@ -84,7 +84,7 @@ export default function LineupCard({ lineup }) {
                 ) : null}
               </div>
               <div className="text-right">
-                <div className="flex items-center justify-end gap-2 font-medium text-white">
+                <div className="flex items-center justify-end gap-2 font-medium text-slate-900 dark:text-white">
                   {row ? (
                     <>
                       <img
@@ -97,7 +97,7 @@ export default function LineupCard({ lineup }) {
                       <img
                         src={getPlayerHeadshotUrl(row.sleeper_id) ?? undefined}
                         alt={`${row.name} headshot`}
-                        className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                        className="h-7 w-7 rounded-full border border-slate-300 object-cover dark:border-slate-700"
                         loading="lazy"
                         onError={hideBrokenImage}
                       />
@@ -105,7 +105,7 @@ export default function LineupCard({ lineup }) {
                   ) : null}
                   <span>{row?.name ?? "—"}</span>
                 </div>
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-slate-500 dark:text-slate-400">
                   {row?.projected_points != null
                     ? `${row.projected_points.toFixed(1)} pts`
                     : "—"}

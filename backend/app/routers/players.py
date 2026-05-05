@@ -1,5 +1,9 @@
 """Routes for player listing and stats history."""
 
+import os
+from datetime import UTC, datetime, timedelta
+
+import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,6 +13,37 @@ from app.models import Player, PlayerStat
 from app.schemas import PlayerOut, PlayerStatHistory, PlayerStatsDetailOut
 
 router = APIRouter(prefix="/api/players", tags=["players"])
+SLEEPER_BASE = os.getenv("SLEEPER_BASE_URL", "https://api.sleeper.app/v1")
+SLEEPER_CACHE_TTL = timedelta(hours=6)
+_sleeper_players_cache: dict[str, dict] = {}
+_sleeper_players_cached_at: datetime | None = None
+
+
+def _get_sleeper_players_map() -> dict[str, dict]:
+    """Fetch and cache Sleeper player payloads keyed by sleeper_id."""
+    global _sleeper_players_cache
+    global _sleeper_players_cached_at
+
+    if (
+        _sleeper_players_cached_at is not None
+        and datetime.now(UTC) - _sleeper_players_cached_at < SLEEPER_CACHE_TTL
+        and _sleeper_players_cache
+    ):
+        return _sleeper_players_cache
+
+    response = requests.get(f"{SLEEPER_BASE}/players/nfl", timeout=60)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return {}
+
+    _sleeper_players_cache = {
+        str(sleeper_id): player_data
+        for sleeper_id, player_data in payload.items()
+        if isinstance(player_data, dict)
+    }
+    _sleeper_players_cached_at = datetime.now(UTC)
+    return _sleeper_players_cache
 
 
 @router.get("", response_model=list[PlayerOut])
@@ -72,6 +107,7 @@ def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDe
         .where(PlayerStat.player_id == player_id)
         .order_by(PlayerStat.season, PlayerStat.week)
     ).all()
+    sleeper_profile = _get_sleeper_players_map().get(pl.sleeper_id, {})
     return PlayerStatsDetailOut(
         player=PlayerOut(
             id=pl.id,
@@ -80,6 +116,18 @@ def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDe
             position=pl.position,
             team=pl.team,
             projected_points=rows[-1].projected_points if rows else None,
+            college=sleeper_profile.get("college"),
+            years_exp=(
+                int(sleeper_profile["years_exp"])
+                if sleeper_profile.get("years_exp") not in (None, "")
+                else None
+            ),
+            age=(
+                int(sleeper_profile["age"])
+                if sleeper_profile.get("age") not in (None, "")
+                else None
+            ),
+            injury_status=sleeper_profile.get("injury_status"),
         ),
         stats=[
             PlayerStatHistory(

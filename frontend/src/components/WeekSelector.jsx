@@ -20,13 +20,13 @@ export default function WeekSelector({
   const seasons = Array.from({ length: 4 }, (_, i) => 2023 + i);
 
   return (
-    <div className="flex items-center gap-3 text-sm text-slate-300">
+    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
       <label className="flex items-center gap-2">
         <span>Season</span>
         <select
           value={season}
           onChange={(e) => onSeasonChange(Number(e.target.value))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
         >
           {seasons.map((y) => (
             <option key={y} value={y}>
@@ -40,7 +40,7 @@ export default function WeekSelector({
         <select
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
         >
           {weeks.map((w) => (
             <option key={w} value={w}>

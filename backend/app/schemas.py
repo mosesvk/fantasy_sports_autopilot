@@ -38,6 +38,10 @@ class PlayerOut(BaseModel):
     position: str
     team: str | None = None
     projected_points: float | None = None
+    college: str | None = None
+    years_exp: int | None = None
+    age: int | None = None
+    injury_status: str | None = None
 
 
 class PlayerStatHistory(BaseModel):
