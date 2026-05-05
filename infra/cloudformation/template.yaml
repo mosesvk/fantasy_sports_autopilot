@@ -1,0 +1,18 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Scaffold for Fantasy Autopilot serverless stack.
+  Expand with RDS, Lambda, EventBridge, and IAM resources.
+
+Parameters:
+  Placeholder:
+    Type: String
+    Default: unused
+    Description: Replace with real parameters when you flesh out this template.
+
+Resources:
+  # Add AWS::RDS::DBInstance, AWS::Lambda::Function, AWS::Events::Rule, etc.
+
+Outputs:
+  Message:
+    Description: Scaffold only — see README for AWS CLI examples.
+    Value: OK
