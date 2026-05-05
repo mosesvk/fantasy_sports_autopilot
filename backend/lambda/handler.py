@@ -15,7 +15,7 @@ from pathlib import Path
 # Lambda zip layout: `app` package lives under backend root on PYTHONPATH.
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 _LAMBDA_DIR = Path(__file__).resolve().parent
-for _p in (_BACKEND_ROOT, _LAMDA_DIR):
+for _p in (_BACKEND_ROOT, _LAMBDA_DIR):
     pstr = str(_p)
     if pstr not in sys.path:
         sys.path.insert(0, pstr)
