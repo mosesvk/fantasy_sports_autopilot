@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAllPlayers, getCurrentLineup, getLineupByWeek } from "../api/client.js";
 import LineupCard from "../components/LineupCard.jsx";
 import PlayerTable from "../components/PlayerTable.jsx";
+import StatsDrawer from "../components/StatsDrawer.jsx";
 import WeekSelector from "../components/WeekSelector.jsx";
 
 /**
@@ -12,6 +13,7 @@ import WeekSelector from "../components/WeekSelector.jsx";
 export default function Dashboard() {
   const [weekMode, setWeekMode] = useState("current");
   const [week, setWeek] = useState(1);
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
   const lineupQuery = useQuery({
     queryKey:
@@ -24,6 +26,7 @@ export default function Dashboard() {
       const res = await getLineupByWeek(week);
       return res.data;
     },
+    retry: false,
   });
 
   const playersQuery = useQuery({
@@ -81,11 +84,11 @@ export default function Dashboard() {
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
         </div>
       ) : lineupQuery.isError ? (
-        <div className="rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-3 text-red-200">
-          Failed to load lineup. Seed data with{" "}
-          <code className="rounded bg-slate-800 px-1">POST /api/trigger</code> or{" "}
-          <code className="rounded bg-slate-800 px-1">scripts/run_local.py</code>{" "}
-          first.
+        <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
+          <p className="text-slate-400 text-lg">No lineup found for Week {week}.</p>
+          <p className="text-slate-500 text-sm mt-2">
+            Only Week 18 · 2025 has been seeded. The optimizer runs every Tuesday.
+          </p>
         </div>
       ) : (
         <div className="grid gap-8 lg:grid-cols-2">
@@ -93,9 +96,14 @@ export default function Dashboard() {
           <PlayerTable
             players={playersQuery.data || []}
             loading={playersQuery.isLoading}
+            onPlayerClick={(id) => setSelectedPlayerId(id)}
           />
         </div>
       )}
+      <StatsDrawer
+        playerId={selectedPlayerId}
+        onClose={() => setSelectedPlayerId(null)}
+      />
     </div>
   );
 }

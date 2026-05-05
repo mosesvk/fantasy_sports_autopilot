@@ -43,6 +43,14 @@ export default function LineupCard({ lineup }) {
             Week {lineup.week} · Season {lineup.season}
           </p>
         </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-white">
+            {lineup.total_projected_points?.toFixed(1) ?? "—"}
+          </div>
+          <div className="text-xs uppercase tracking-wide text-slate-400">
+            proj pts
+          </div>
+        </div>
       </div>
       <div className="space-y-3">
         {SLOT_ORDER.map((slot) => {

@@ -2,14 +2,18 @@ import { useMemo, useState } from "react";
 
 /**
  * Sortable, filterable player table.
- * @param {{ players: Array<{ id: number; name: string; position: string; team: string | null }>, loading?: boolean }} props Props
+ * @param {{
+ *   players: Array<{ id: number; name: string; position: string; team: string | null; projected_points?: number | null }>,
+ *   loading?: boolean,
+ *   onPlayerClick?: (playerId: number) => void
+ * }} props Props
  * @returns {JSX.Element}
  */
-export default function PlayerTable({ players, loading }) {
+export default function PlayerTable({ players, loading, onPlayerClick }) {
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState("");
-  const [sortKey, setSortKey] = useState("name");
-  const [sortDir, setSortDir] = useState("asc");
+  const [sortKey, setSortKey] = useState("projected_points");
+  const [sortDir, setSortDir] = useState("desc");
 
   const filtered = useMemo(() => {
     let rows = players || [];
@@ -22,8 +26,8 @@ export default function PlayerTable({ players, loading }) {
     }
     const dir = sortDir === "asc" ? 1 : -1;
     return [...rows].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
+      const av = a[sortKey] ?? (sortKey === "projected_points" ? 0 : "");
+      const bv = b[sortKey] ?? (sortKey === "projected_points" ? 0 : "");
       if (typeof av === "number" && typeof bv === "number") {
         return (av - bv) * dir;
       }
@@ -36,7 +40,7 @@ export default function PlayerTable({ players, loading }) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDir("asc");
+      setSortDir(key === "projected_points" ? "desc" : "asc");
     }
   };
 
@@ -87,7 +91,7 @@ export default function PlayerTable({ players, loading }) {
                   Pos
                 </button>
               </th>
-              <th className="py-2">
+              <th className="py-2 pr-4">
                 <button
                   type="button"
                   className="hover:text-white"
@@ -96,12 +100,21 @@ export default function PlayerTable({ players, loading }) {
                   Team
                 </button>
               </th>
+              <th className="py-2 text-right">
+                <button
+                  type="button"
+                  className="hover:text-white"
+                  onClick={() => toggleSort("projected_points")}
+                >
+                  Proj Pts
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3} className="py-6 text-center text-slate-500">
+                <td colSpan={4} className="py-6 text-center text-slate-500">
                   Loading players...
                 </td>
               </tr>
@@ -109,11 +122,21 @@ export default function PlayerTable({ players, loading }) {
               filtered.map((p) => (
                 <tr
                   key={p.id}
-                  className="border-b border-slate-900/80 text-slate-200"
+                  className="cursor-pointer border-b border-slate-900/80 text-slate-200 hover:bg-slate-950/60"
+                  onClick={() => onPlayerClick?.(p.id)}
                 >
                   <td className="py-2 pr-4 font-medium">{p.name}</td>
                   <td className="py-2 pr-4">{p.position}</td>
-                  <td className="py-2">{p.team ?? "—"}</td>
+                  <td className="py-2 pr-4">{p.team ?? "—"}</td>
+                  <td className="py-2 text-right">
+                    {p.projected_points != null ? (
+                      <span className="font-medium text-blue-400">
+                        {p.projected_points.toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">—</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

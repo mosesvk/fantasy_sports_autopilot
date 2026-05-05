@@ -24,6 +24,7 @@ class LineupDetailOut(BaseModel):
     sport: str = "nfl"
     created_at: datetime | None = None
     starters: list[LineupPlayerOut] = Field(default_factory=list)
+    total_projected_points: float | None = None
 
 
 class PlayerOut(BaseModel):
@@ -34,6 +35,7 @@ class PlayerOut(BaseModel):
     name: str
     position: str
     team: str | None = None
+    projected_points: float | None = None
 
 
 class PlayerStatHistory(BaseModel):

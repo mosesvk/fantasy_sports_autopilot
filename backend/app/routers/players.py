@@ -17,20 +17,28 @@ def list_players(
     db: Session = Depends(get_db),
 ) -> list[PlayerOut]:
     """List players with optional position filter."""
-    q = select(Player)
+    latest_projected_points = (
+        select(PlayerStat.projected_points)
+        .where(PlayerStat.player_id == Player.id)
+        .order_by(PlayerStat.season.desc(), PlayerStat.week.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    q = select(Player, latest_projected_points.label("projected_points"))
     if position:
         q = q.where(Player.position == position.upper())
     q = q.order_by(Player.name)
-    rows = db.scalars(q).all()
+    rows = db.execute(q).all()
     return [
         PlayerOut(
-            id=r.id,
-            sleeper_id=r.sleeper_id,
-            name=r.name,
-            position=r.position,
-            team=r.team,
+            id=player.id,
+            sleeper_id=player.sleeper_id,
+            name=player.name,
+            position=player.position,
+            team=player.team,
+            projected_points=projected_points,
         )
-        for r in rows
+        for player, projected_points in rows
     ]
 
 
@@ -52,6 +60,7 @@ def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDe
             name=pl.name,
             position=pl.position,
             team=pl.team,
+            projected_points=rows[-1].projected_points if rows else None,
         ),
         stats=[
             PlayerStatHistory(

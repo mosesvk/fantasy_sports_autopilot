@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Lineup, LineupPlayer, Player
+from app.models import Lineup, LineupPlayer
 from app.schemas import LineupDetailOut, LineupPlayerOut
 
 router = APIRouter(prefix="/api/lineup", tags=["lineup"])
@@ -24,6 +24,7 @@ def _lineup_to_detail(lineup: Lineup) -> LineupDetailOut:
                 projected_points=lp.projected_points,
             )
         )
+    total = sum((s.projected_points or 0) for s in starters)
     return LineupDetailOut(
         lineup_id=lineup.id,
         week=lineup.week,
@@ -31,6 +32,7 @@ def _lineup_to_detail(lineup: Lineup) -> LineupDetailOut:
         sport=lineup.sport,
         created_at=lineup.created_at,
         starters=starters,
+        total_projected_points=round(total, 2),
     )
 
 
@@ -40,6 +42,7 @@ def get_current_lineup(db: Session = Depends(get_db)) -> LineupDetailOut:
     lineup = db.scalars(
         select(Lineup)
         .options(joinedload(Lineup.players).joinedload(LineupPlayer.player))
+        .where(Lineup.players.any())
         .order_by(Lineup.season.desc(), Lineup.week.desc(), Lineup.id.desc())
         .limit(1)
     ).first()
