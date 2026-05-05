@@ -51,16 +51,20 @@ def get_current_lineup(db: Session = Depends(get_db)) -> LineupDetailOut:
     return _lineup_to_detail(lineup)
 
 
-@router.get("/{week}", response_model=LineupDetailOut)
-def get_lineup_by_week(week: int, db: Session = Depends(get_db)) -> LineupDetailOut:
-    """Return the latest lineup row for a specific fantasy week."""
+@router.get("/{season}/{week}", response_model=LineupDetailOut)
+def get_lineup_by_week(
+    season: int, week: int, db: Session = Depends(get_db)
+) -> LineupDetailOut:
+    """Return the latest lineup row for a specific season and fantasy week."""
     lineup = db.scalars(
         select(Lineup)
         .options(joinedload(Lineup.players).joinedload(LineupPlayer.player))
-        .where(Lineup.week == week)
-        .order_by(Lineup.season.desc(), Lineup.id.desc())
+        .where(Lineup.season == season, Lineup.week == week)
+        .order_by(Lineup.id.desc())
         .limit(1)
     ).first()
     if not lineup:
-        raise HTTPException(status_code=404, detail=f"No lineup for week {week}")
+        raise HTTPException(
+            status_code=404, detail=f"No lineup for season {season}, week {week}"
+        )
     return _lineup_to_detail(lineup)

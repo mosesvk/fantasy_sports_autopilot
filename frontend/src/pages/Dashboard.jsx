@@ -12,18 +12,21 @@ import WeekSelector from "../components/WeekSelector.jsx";
  */
 export default function Dashboard() {
   const [weekMode, setWeekMode] = useState("current");
+  const [season, setSeason] = useState(2025);
   const [week, setWeek] = useState(1);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
   const lineupQuery = useQuery({
     queryKey:
-      weekMode === "current" ? ["lineup", "current"] : ["lineup", "week", week],
+      weekMode === "current"
+        ? ["lineup", "current"]
+        : ["lineup", "week", season, week],
     queryFn: async () => {
       if (weekMode === "current") {
         const res = await getCurrentLineup();
         return res.data;
       }
-      const res = await getLineupByWeek(week);
+      const res = await getLineupByWeek(season, week);
       return res.data;
     },
     retry: false,
@@ -74,7 +77,12 @@ export default function Dashboard() {
             </button>
           </div>
           {weekMode === "historical" ? (
-            <WeekSelector value={week} onChange={setWeek} />
+            <WeekSelector
+              season={season}
+              onSeasonChange={setSeason}
+              value={week}
+              onChange={setWeek}
+            />
           ) : null}
         </div>
       </header>
@@ -87,7 +95,7 @@ export default function Dashboard() {
         <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
           <p className="text-slate-400 text-lg">No lineup found for Week {week}.</p>
           <p className="text-slate-500 text-sm mt-2">
-            Only Week 18 · 2025 has been seeded. The optimizer runs every Tuesday.
+            No lineup has been seeded for Season {season}, Week {week} yet.
           </p>
         </div>
       ) : (

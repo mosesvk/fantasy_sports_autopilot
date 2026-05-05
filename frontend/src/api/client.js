@@ -12,10 +12,12 @@ export const getCurrentLineup = () => api.get("/api/lineup/current");
 
 /**
  * Fetch lineup for a specific fantasy week.
+ * @param {number} season Season year
  * @param {number} week Week number
  * @returns {Promise<import("axios").AxiosResponse>}
  */
-export const getLineupByWeek = (week) => api.get(`/api/lineup/${week}`);
+export const getLineupByWeek = (season, week) =>
+  api.get(`/api/lineup/${season}/${week}`);
 
 /**
  * List players with optional position filter.
