@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
 
 /**
  * Sortable, filterable player table.
@@ -14,6 +15,8 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
   const [position, setPosition] = useState("");
   const [sortKey, setSortKey] = useState("projected_points");
   const [sortDir, setSortDir] = useState("desc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const filtered = useMemo(() => {
     let rows = players || [];
@@ -35,6 +38,11 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
     });
   }, [players, query, position, sortKey, sortDir]);
 
+  /**
+   * Toggle sorting for a selected key, preserving default direction by data type.
+   * @param {string} key Column key to sort by.
+   * @returns {void}
+   */
   const toggleSort = (key) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -42,6 +50,35 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
       setSortKey(key);
       setSortDir(key === "projected_points" ? "desc" : "asc");
     }
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, position, sortKey, sortDir, players]);
+
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const rowsForPage = filtered.slice(start, end);
+
+  /**
+   * Set the table page while keeping it within valid bounds.
+   * @param {number} nextPage Requested page index (1-based).
+   * @returns {void}
+   */
+  const setPageWithinBounds = (nextPage) => {
+    setPage(Math.max(1, Math.min(nextPage, totalPages)));
+  };
+
+  /**
+   * Handle image load failure by hiding broken remote assets.
+   * @param {React.SyntheticEvent<HTMLImageElement>} event Image error event.
+   * @returns {void}
+   */
+  const hideBrokenImage = (event) => {
+    event.currentTarget.style.display = "none";
   };
 
   return (
@@ -118,16 +155,38 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   Loading players...
                 </td>
               </tr>
-            ) : (
-              filtered.map((p) => (
+            ) : rowsForPage.length ? (
+              rowsForPage.map((p) => (
                 <tr
                   key={p.id}
                   className="cursor-pointer border-b border-slate-900/80 text-slate-200 hover:bg-slate-950/60"
                   onClick={() => onPlayerClick?.(p.id)}
                 >
-                  <td className="py-2 pr-4 font-medium">{p.name}</td>
+                  <td className="py-2 pr-4 font-medium">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={getPlayerHeadshotUrl(p.sleeper_id) ?? undefined}
+                        alt={`${p.name} headshot`}
+                        className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                        loading="lazy"
+                        onError={hideBrokenImage}
+                      />
+                      <span>{p.name}</span>
+                    </div>
+                  </td>
                   <td className="py-2 pr-4">{p.position}</td>
-                  <td className="py-2 pr-4">{p.team ?? "—"}</td>
+                  <td className="py-2 pr-4">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={getTeamLogoUrl(p.team) ?? undefined}
+                        alt={p.team ? `${p.team} logo` : "No team"}
+                        className="h-5 w-5 rounded-sm object-contain"
+                        loading="lazy"
+                        onError={hideBrokenImage}
+                      />
+                      <span>{p.team ?? "—"}</span>
+                    </div>
+                  </td>
                   <td className="py-2 text-right">
                     {p.projected_points != null ? (
                       <span className="font-medium text-blue-400">
@@ -139,9 +198,41 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
                   </td>
                 </tr>
               ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="py-6 text-center text-slate-500">
+                  No players match the current filters.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
+      </div>
+      <div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          Showing {totalRows === 0 ? 0 : start + 1}-{Math.min(end, totalRows)} of {totalRows}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPageWithinBounds(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Prev
+          </button>
+          <span className="text-slate-300">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPageWithinBounds(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -33,9 +33,12 @@ export default function Dashboard() {
   });
 
   const playersQuery = useQuery({
-    queryKey: ["players"],
+    queryKey: ["players", weekMode, season, week],
     queryFn: async () => {
-      const res = await getAllPlayers();
+      const res = await getAllPlayers(undefined, {
+        season: weekMode === "historical" ? season : undefined,
+        week: weekMode === "historical" ? week : undefined,
+      });
       return res.data;
     },
   });
@@ -87,27 +90,33 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {lineupQuery.isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-        </div>
-      ) : lineupQuery.isError ? (
-        <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
-          <p className="text-slate-400 text-lg">No lineup found for Week {week}.</p>
-          <p className="text-slate-500 text-sm mt-2">
-            No lineup has been seeded for Season {season}, Week {week} yet.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-8 lg:grid-cols-2">
+        {lineupQuery.isLoading ? (
+          <div className="flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900/80 py-20">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          </div>
+        ) : lineupQuery.isError ? (
+          <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
+            <p className="text-lg text-slate-300">No lineup found for Week {week}.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              No lineup has been seeded for Season {season}, Week {week} yet. You can still
+              browse player projections on the right.
+            </p>
+          </div>
+        ) : (
           <LineupCard lineup={lineupQuery.data} />
-          <PlayerTable
-            players={playersQuery.data || []}
-            loading={playersQuery.isLoading}
-            onPlayerClick={(id) => setSelectedPlayerId(id)}
-          />
+        )}
+        <PlayerTable
+          players={playersQuery.data || []}
+          loading={playersQuery.isLoading}
+          onPlayerClick={(id) => setSelectedPlayerId(id)}
+        />
+      </div>
+      {playersQuery.isError ? (
+        <div className="mt-4 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          Could not load player projections. Please refresh and try again.
         </div>
-      )}
+      ) : null}
       <StatsDrawer
         playerId={selectedPlayerId}
         onClose={() => setSelectedPlayerId(null)}

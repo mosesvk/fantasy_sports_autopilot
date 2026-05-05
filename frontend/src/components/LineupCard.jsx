@@ -1,3 +1,5 @@
+import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
+
 const SLOT_ORDER = [
   "QB",
   "RB1",
@@ -29,6 +31,15 @@ const posColor = (pos) => {
  */
 export default function LineupCard({ lineup }) {
   if (!lineup) return null;
+
+  /**
+   * Hide broken remote images so text fallback remains clean.
+   * @param {React.SyntheticEvent<HTMLImageElement>} event Image error event.
+   * @returns {void}
+   */
+  const hideBrokenImage = (event) => {
+    event.currentTarget.style.display = "none";
+  };
 
   const bySlot = Object.fromEntries(
     (lineup.starters || []).map((s) => [s.slot, s]),
@@ -73,8 +84,26 @@ export default function LineupCard({ lineup }) {
                 ) : null}
               </div>
               <div className="text-right">
-                <div className="font-medium text-white">
-                  {row?.name ?? "—"}
+                <div className="flex items-center justify-end gap-2 font-medium text-white">
+                  {row ? (
+                    <>
+                      <img
+                        src={getTeamLogoUrl(row.team) ?? undefined}
+                        alt={row.team ? `${row.team} logo` : "No team"}
+                        className="h-5 w-5 rounded-sm object-contain"
+                        loading="lazy"
+                        onError={hideBrokenImage}
+                      />
+                      <img
+                        src={getPlayerHeadshotUrl(row.sleeper_id) ?? undefined}
+                        alt={`${row.name} headshot`}
+                        className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                        loading="lazy"
+                        onError={hideBrokenImage}
+                      />
+                    </>
+                  ) : null}
+                  <span>{row?.name ?? "—"}</span>
                 </div>
                 <div className="text-sm text-slate-400">
                   {row?.projected_points != null

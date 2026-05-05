@@ -19,8 +19,10 @@ def _lineup_to_detail(lineup: Lineup) -> LineupDetailOut:
             LineupPlayerOut(
                 slot=lp.slot,
                 player_id=pl.id,
+                sleeper_id=pl.sleeper_id,
                 name=pl.name,
                 position=pl.position,
+                team=pl.team,
                 projected_points=lp.projected_points,
             )
         )

@@ -1,7 +1,7 @@
 """Routes for player listing and stats history."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,17 +14,36 @@ router = APIRouter(prefix="/api/players", tags=["players"])
 @router.get("", response_model=list[PlayerOut])
 def list_players(
     position: str | None = Query(default=None, description="Filter by position (QB, RB, ...)"),
+    season: int | None = Query(default=None, description="Optional season filter for projections"),
+    week: int | None = Query(default=None, description="Optional week filter for projections"),
     db: Session = Depends(get_db),
 ) -> list[PlayerOut]:
     """List players with optional position filter."""
     latest_projected_points = (
         select(PlayerStat.projected_points)
         .where(PlayerStat.player_id == Player.id)
-        .order_by(PlayerStat.season.desc(), PlayerStat.week.desc())
+        .where(PlayerStat.projected_points.is_not(None))
+        .order_by(PlayerStat.season.desc(), PlayerStat.week.desc(), PlayerStat.id.desc())
         .limit(1)
         .scalar_subquery()
     )
-    q = select(Player, latest_projected_points.label("projected_points"))
+
+    requested_week_projected_points = (
+        select(PlayerStat.projected_points)
+        .where(PlayerStat.player_id == Player.id)
+        .where(PlayerStat.season == season, PlayerStat.week == week)
+        .order_by(PlayerStat.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+
+    projected_points = (
+        func.coalesce(requested_week_projected_points, latest_projected_points)
+        if season is not None and week is not None
+        else latest_projected_points
+    )
+
+    q = select(Player, projected_points.label("projected_points"))
     if position:
         q = q.where(Player.position == position.upper())
     q = q.order_by(Player.name)

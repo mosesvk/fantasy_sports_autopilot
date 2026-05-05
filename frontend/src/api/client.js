@@ -22,10 +22,17 @@ export const getLineupByWeek = (season, week) =>
 /**
  * List players with optional position filter.
  * @param {string | undefined} position Position code (e.g. QB)
+ * @param {{ season?: number, week?: number } | undefined} options Optional season/week projection context
  * @returns {Promise<import("axios").AxiosResponse>}
  */
-export const getAllPlayers = (position) =>
-  api.get("/api/players", { params: { position } });
+export const getAllPlayers = (position, options) =>
+  api.get("/api/players", {
+    params: {
+      position,
+      season: options?.season,
+      week: options?.week,
+    },
+  });
 
 /**
  * Historical stats for one player.

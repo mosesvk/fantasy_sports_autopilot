@@ -10,8 +10,10 @@ class LineupPlayerOut(BaseModel):
 
     slot: str
     player_id: int
+    sleeper_id: str
     name: str
     position: str
+    team: str | None = None
     projected_points: float | None = None
 
 
