@@ -17,3 +17,10 @@ export const getTeamLogoUrl = (team) => {
   if (!team) return null;
   return `https://a.espncdn.com/i/teamlogos/nfl/500/${team.toLowerCase()}.png`;
 };
+
+/** ESPN CDN shield (PNG) — same host as team logos. */
+export const NFL_LEAGUE_LOGO_URL_ESPN = "https://a.espncdn.com/i/teamlogos/leagues/500/nfl.png";
+
+/** Wikimedia Commons NFL mark (SVG) if ESPN asset fails. */
+export const NFL_LEAGUE_LOGO_URL_WIKI =
+  "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg";

@@ -69,7 +69,7 @@ export default function LineupCard({ lineup, onPlayerClick }) {
           return (
             <div
               key={slot}
-              className={`flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60 ${
+              className={`flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60 ${
                 row ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/80" : ""
               }`}
               onClick={() => {
@@ -78,48 +78,48 @@ export default function LineupCard({ lineup, onPlayerClick }) {
                 }
               }}
             >
-              <div className="flex items-center gap-3">
-                <span className="w-14 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">
-                  {slot}
-                </span>
+              <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
                 {row ? (
-                  <span
-                    className={`rounded-md border px-2 py-1 text-xs font-medium ${posColor(row.position)}`}
-                  >
-                    {row.position}
-                  </span>
-                ) : null}
+                  <>
+                    <img
+                      src={getTeamLogoUrl(row.team) ?? undefined}
+                      alt={row.team ? `${row.team} logo` : "No team"}
+                      className="h-9 w-9 shrink-0 rounded-sm object-contain sm:h-10 sm:w-10"
+                      loading="lazy"
+                      onError={hideBrokenImage}
+                    />
+                    <img
+                      src={getPlayerHeadshotUrl(row.sleeper_id) ?? undefined}
+                      alt={`${row.name} headshot`}
+                      className="h-10 w-10 shrink-0 rounded-full border-2 border-slate-300 object-cover dark:border-slate-600 sm:h-11 sm:w-11"
+                      loading="lazy"
+                      onError={hideBrokenImage}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-base font-semibold leading-tight text-slate-900 dark:text-white sm:text-lg">
+                        {row.name}
+                      </div>
+                      <div className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+                        {row.projected_points != null ? `${row.projected_points.toFixed(1)} pts` : "—"}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Empty slot ({slot})</span>
+                )}
               </div>
-              <div className="text-right">
-                <div className="flex items-center justify-end gap-3 text-slate-900 dark:text-white">
-                  {row ? (
-                    <>
-                      <img
-                        src={getTeamLogoUrl(row.team) ?? undefined}
-                        alt={row.team ? `${row.team} logo` : "No team"}
-                        className="h-9 w-9 shrink-0 rounded-sm object-contain sm:h-10 sm:w-10"
-                        loading="lazy"
-                        onError={hideBrokenImage}
-                      />
-                      <img
-                        src={getPlayerHeadshotUrl(row.sleeper_id) ?? undefined}
-                        alt={`${row.name} headshot`}
-                        className="h-10 w-10 shrink-0 rounded-full border-2 border-slate-300 object-cover dark:border-slate-600 sm:h-11 sm:w-11"
-                        loading="lazy"
-                        onError={hideBrokenImage}
-                      />
-                    </>
-                  ) : null}
-                  <span className="text-base font-semibold leading-tight sm:text-lg">
-                    {row?.name ?? "—"}
-                  </span>
-                </div>
-                <div className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
-                  {row?.projected_points != null
-                    ? `${row.projected_points.toFixed(1)} pts`
-                    : "—"}
-                </div>
-              </div>
+              {row ? (
+                <span
+                  className={`shrink-0 rounded-xl border-2 px-4 py-2.5 text-lg font-bold tracking-wide ${posColor(row.position)}`}
+                  aria-label={`Position ${row.position}`}
+                >
+                  {row.position}
+                </span>
+              ) : (
+                <span className="shrink-0 rounded-xl border border-dashed border-slate-300 px-4 py-2.5 text-lg font-semibold text-slate-400 dark:border-slate-600 dark:text-slate-600">
+                  —
+                </span>
+              )}
             </div>
           );
         })}
