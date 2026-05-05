@@ -58,3 +58,21 @@ class PlayerStatsDetailOut(BaseModel):
 
     player: PlayerOut
     stats: list[PlayerStatHistory]
+
+
+class LeaderColumnOut(BaseModel):
+    """Column metadata for a leaders table."""
+
+    key: str
+    label: str
+    numeric: bool = False
+
+
+class PlayerLeadersOut(BaseModel):
+    """Aggregated season leaders payload."""
+
+    category: str
+    title: str
+    main_tab: str
+    columns: list[LeaderColumnOut]
+    rows: list[dict[str, str | int | float | None]]

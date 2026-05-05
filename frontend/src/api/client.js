@@ -40,3 +40,16 @@ export const getAllPlayers = (position, options) =>
  * @returns {Promise<import("axios").AxiosResponse>}
  */
 export const getPlayerStats = (id) => api.get(`/api/players/${id}/stats`);
+
+/**
+ * Fetch aggregated season leaders for a category and split.
+ * @param {{
+ *   category: string,
+ *   season: number,
+ *   split: "regular" | "postseason",
+ *   conference: "all" | "afc" | "nfc"
+ * }} params Query options
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getSeasonLeaders = (params) =>
+  api.get("/api/players/season-leaders", { params });
