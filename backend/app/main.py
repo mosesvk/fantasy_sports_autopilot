@@ -71,6 +71,12 @@ def trigger_pipeline(db: Session = Depends(get_db)) -> dict:
     else:
         week = int(os.getenv("NFL_DEFAULT_WEEK", "1"))
 
+    # Offseason fallback
+    season_type = state.get("season_type", "")
+    if season_type in ("off", "pre") or week == 0:
+        season = season - 1
+        week = 18
+
     fetch_all_players(db)
     n = fetch_weekly_projections(db, season, week)
     result = optimize_lineup(db, season, week)
