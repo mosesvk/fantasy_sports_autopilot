@@ -26,10 +26,10 @@ const posColor = (pos) => {
 
 /**
  * Displays optimized lineup slots with projected points.
- * @param {{ lineup: object | null }} props Component props
+ * @param {{ lineup: object | null, onPlayerClick?: (playerId: number) => void }} props Component props
  * @returns {JSX.Element}
  */
-export default function LineupCard({ lineup }) {
+export default function LineupCard({ lineup, onPlayerClick }) {
   if (!lineup) return null;
 
   /**
@@ -69,7 +69,14 @@ export default function LineupCard({ lineup }) {
           return (
             <div
               key={slot}
-              className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60"
+              className={`flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60 ${
+                row ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/80" : ""
+              }`}
+              onClick={() => {
+                if (row?.player_id != null) {
+                  onPlayerClick?.(row.player_id);
+                }
+              }}
             >
               <div className="flex items-center gap-3">
                 <span className="w-14 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">

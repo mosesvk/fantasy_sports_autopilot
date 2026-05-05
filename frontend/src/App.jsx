@@ -6,7 +6,13 @@ import Dashboard from "./pages/Dashboard.jsx";
  * @returns {JSX.Element}
  */
 export default function App() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState(() => {
+    const storedTheme = localStorage.getItem("theme");
+    if (storedTheme === "light" || storedTheme === "dark") {
+      return storedTheme;
+    }
+    return "light";
+  });
 
   /**
    * Toggle active app theme between light and dark mode.
@@ -17,13 +23,14 @@ export default function App() {
   };
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <Dashboard theme={theme} onToggleTheme={toggleTheme} />
+    <div className={theme === "dark" ? "dark" : ""} data-theme={theme}>
+      <div className="min-h-screen bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+        <Dashboard theme={theme} onToggleTheme={toggleTheme} />
+      </div>
     </div>
   );
 }

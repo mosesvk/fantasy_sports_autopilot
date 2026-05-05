@@ -61,7 +61,7 @@ export default function Dashboard({ theme, onToggleTheme }) {
             onClick={onToggleTheme}
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            {theme === "dark" ? "Light mode" : "Dark mode"}
+            {theme === "dark" ? "Dark active (switch to light)" : "Light active (switch to dark)"}
           </button>
           <div className="flex gap-2 rounded-lg border border-slate-300 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
             <button
@@ -112,7 +112,10 @@ export default function Dashboard({ theme, onToggleTheme }) {
             </p>
           </div>
         ) : (
-          <LineupCard lineup={lineupQuery.data} />
+          <LineupCard
+            lineup={lineupQuery.data}
+            onPlayerClick={(id) => setSelectedPlayerId(id)}
+          />
         )}
         <PlayerTable
           players={playersQuery.data || []}
