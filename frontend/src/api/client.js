@@ -42,6 +42,14 @@ export const getAllPlayers = (position, options) =>
 export const getPlayerStats = (id) => api.get(`/api/players/${id}/stats`);
 
 /**
+ * Historical stats for one player by Sleeper id (DB row created on demand if needed).
+ * @param {string} sleeperId Sleeper player id
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getPlayerStatsBySleeper = (sleeperId) =>
+  api.get(`/api/players/sleeper/${encodeURIComponent(sleeperId)}/stats`);
+
+/**
  * Fetch aggregated season leaders for a category and split.
  * @param {{
  *   category: string,

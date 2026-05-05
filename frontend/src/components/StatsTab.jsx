@@ -432,8 +432,8 @@ const matchesConferenceFilter = (row, conferenceFilter) => {
  * @param {{
  *   title: string,
  *   metricLabel: string,
- *   rows: Array<{rank:number, player:string, team:string, value:string}>,
- *   onPlayerSelect: (playerId: number) => void,
+ *   rows: Array<{rank:number, player:string, team:string, value:string, sleeperId?: string}>,
+ *   onPlayerSelect: (payload: { playerId: number | null, sleeperId: string | null }) => void,
  *   getPlayerIdByName: (playerName: string) => number | null,
  *   onOpenStatSheet: (statType: string) => void
  * }} props Leaders table props
@@ -468,12 +468,17 @@ function StatLeadersTable({
           <li
             key={`${title}-${row.player}`}
             className={`grid grid-cols-[56px_1fr_auto] items-center gap-2 border-b border-slate-100 px-3 py-2 text-sm dark:border-slate-900 ${
-              getPlayerIdByName(row.player) != null ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" : ""
+              getPlayerIdByName(row.player) != null || row.sleeperId != null
+                ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60"
+                : ""
             }`}
             onClick={() => {
               const playerId = getPlayerIdByName(row.player);
+              const sleeperId = row.sleeperId != null ? String(row.sleeperId) : null;
               if (playerId != null) {
-                onPlayerSelect(playerId);
+                onPlayerSelect({ playerId, sleeperId: null });
+              } else if (sleeperId) {
+                onPlayerSelect({ playerId: null, sleeperId });
               }
             }}
           >
@@ -530,7 +535,7 @@ function StatLeadersTable({
  *   onSplitChange: (next: string) => void,
  *   conferenceFilter: "All NFL" | "AFC" | "NFC",
  *   onConferenceFilterChange: (next: "All NFL" | "AFC" | "NFC") => void,
- *   onPlayerSelect: (playerId: number) => void,
+ *   onPlayerSelect: (payload: { playerId: number | null, sleeperId: string | null }) => void,
  *   getPlayerIdByName: (playerName: string) => number | null,
  *   seasonLeadersQuery: import("@tanstack/react-query").UseQueryResult<any, Error>
  * }} props Stats sheet props
@@ -695,11 +700,18 @@ function PlayerStatsSheet({
               {filteredSortedRows.map((row) => (
                 <tr
                   key={`${selectedStatType}-${row.rank}-${row.player}`}
-                  className="cursor-pointer border-b border-slate-100 text-slate-700 hover:bg-slate-50 dark:border-slate-900 dark:text-slate-200 dark:hover:bg-slate-950/50"
+                  className={`border-b border-slate-100 text-slate-700 dark:border-slate-900 dark:text-slate-200 ${
+                    getPlayerIdByName(String(row.player ?? "")) != null || row.sleeperId != null
+                      ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-950/50"
+                      : ""
+                  }`}
                   onClick={() => {
                     const playerId = getPlayerIdByName(String(row.player ?? ""));
+                    const sleeperId = row.sleeperId != null ? String(row.sleeperId) : null;
                     if (playerId != null) {
-                      onPlayerSelect(playerId);
+                      onPlayerSelect({ playerId, sleeperId: null });
+                    } else if (sleeperId) {
+                      onPlayerSelect({ playerId: null, sleeperId });
                     }
                   }}
                 >
@@ -750,7 +762,8 @@ function PlayerStatsSheet({
  */
 export default function StatsTab() {
   const [viewMode, setViewMode] = useState("overview");
-  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+  const [statsDrawerPlayerId, setStatsDrawerPlayerId] = useState(null);
+  const [statsDrawerSleeperId, setStatsDrawerSleeperId] = useState(null);
   const [selectedMainTab, setSelectedMainTab] = useState("Offense");
   const [selectedStatType, setSelectedStatType] = useState("passing");
   const [selectedSeason, setSelectedSeason] = useState(2025);
@@ -814,6 +827,16 @@ export default function StatsTab() {
    * @returns {number | null} Player id for drawer lookup.
    */
   const getPlayerIdByName = (playerName) => playerIdByNormalizedName.get(normalizeName(playerName)) ?? null;
+
+  /**
+   * Open the player profile modal from a stats row (DB id preferred, else Sleeper id).
+   * @param {{ playerId: number | null, sleeperId: string | null }} payload Selection payload.
+   * @returns {void}
+   */
+  const openStatsPlayerProfile = ({ playerId, sleeperId }) => {
+    setStatsDrawerPlayerId(playerId ?? null);
+    setStatsDrawerSleeperId(sleeperId ?? null);
+  };
 
   /**
    * Open the detailed stats sheet and focus the requested stat type.
@@ -899,7 +922,7 @@ export default function StatsTab() {
           onSplitChange={setSelectedSplit}
           conferenceFilter={selectedConferenceFilter}
           onConferenceFilterChange={setSelectedConferenceFilter}
-          onPlayerSelect={setSelectedPlayerId}
+          onPlayerSelect={openStatsPlayerProfile}
           getPlayerIdByName={getPlayerIdByName}
           seasonLeadersQuery={seasonLeadersQuery}
         />
@@ -936,7 +959,7 @@ export default function StatsTab() {
                 title={group.title}
                 metricLabel={group.metricLabel}
                 rows={group.rows}
-                onPlayerSelect={setSelectedPlayerId}
+                onPlayerSelect={openStatsPlayerProfile}
                 getPlayerIdByName={getPlayerIdByName}
                 onOpenStatSheet={openStatSheet}
               />
@@ -950,7 +973,7 @@ export default function StatsTab() {
                 title={group.title}
                 metricLabel={group.metricLabel}
                 rows={group.rows}
-                onPlayerSelect={setSelectedPlayerId}
+                onPlayerSelect={openStatsPlayerProfile}
                 getPlayerIdByName={getPlayerIdByName}
                 onOpenStatSheet={openStatSheet}
               />
@@ -962,7 +985,14 @@ export default function StatsTab() {
         </p>
       </div>
       ) : null}
-      <StatsDrawer playerId={selectedPlayerId} onClose={() => setSelectedPlayerId(null)} />
+      <StatsDrawer
+        playerId={statsDrawerPlayerId}
+        sleeperId={statsDrawerSleeperId}
+        onClose={() => {
+          setStatsDrawerPlayerId(null);
+          setStatsDrawerSleeperId(null);
+        }}
+      />
     </section>
   );
 }

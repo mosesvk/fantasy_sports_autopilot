@@ -1,20 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPlayerStats } from "../api/client.js";
+import { getPlayerStats, getPlayerStatsBySleeper } from "../api/client.js";
 import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
 
 /**
  * Slide-out drawer showing a selected player's weekly stat history.
- * @param {{ playerId: number | null, onClose: () => void }} props Component props
+ * @param {{
+ *   playerId?: number | null,
+ *   sleeperId?: string | null,
+ *   onClose: () => void
+ * }} props Component props
  * @returns {JSX.Element}
  */
-export default function StatsDrawer({ playerId, onClose }) {
+export default function StatsDrawer({ playerId = null, sleeperId = null, onClose }) {
+  const isOpen = playerId != null || (sleeperId != null && sleeperId !== "");
+
   const statsQuery = useQuery({
-    queryKey: ["player-stats", playerId],
+    queryKey: ["player-stats", playerId, sleeperId],
     queryFn: async () => {
-      const res = await getPlayerStats(playerId);
+      if (playerId != null) {
+        const res = await getPlayerStats(playerId);
+        return res.data;
+      }
+      const res = await getPlayerStatsBySleeper(sleeperId);
       return res.data;
     },
-    enabled: playerId != null,
+    enabled: isOpen,
   });
 
   /**
@@ -31,13 +41,13 @@ export default function StatsDrawer({ playerId, onClose }) {
   return (
     <div
       className={`fixed inset-0 z-40 transition-opacity duration-200 ${
-        playerId != null ? "pointer-events-auto bg-black/50 opacity-100" : "pointer-events-none opacity-0"
+        isOpen ? "pointer-events-auto bg-black/50 opacity-100" : "pointer-events-none opacity-0"
       }`}
       onClick={onClose}
     >
       <section
         className={`absolute left-1/2 top-1/2 h-[86vh] w-[95vw] max-w-3xl -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-950 ${
-          playerId != null
+          isOpen
             ? "-translate-y-1/2 opacity-100"
             : "pointer-events-none -translate-y-[45%] opacity-0"
         }`}

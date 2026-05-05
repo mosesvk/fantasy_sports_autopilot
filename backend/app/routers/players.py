@@ -497,39 +497,40 @@ def list_players(
     ]
 
 
-@router.get("/{player_id}/stats", response_model=PlayerStatsDetailOut)
-def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDetailOut:
-    """Weekly stats and projections history for a single player."""
-    pl = db.get(Player, player_id)
-    if not pl:
-        raise HTTPException(status_code=404, detail="Player not found")
-    rows = db.scalars(
+def _player_profile_out(pl: Player, stat_rows: list[PlayerStat]) -> PlayerOut:
+    """Build PlayerOut with Sleeper enrichment for stats responses."""
+    sleeper_profile = _get_sleeper_players_map().get(pl.sleeper_id, {})
+    return PlayerOut(
+        id=pl.id,
+        sleeper_id=pl.sleeper_id,
+        name=pl.name,
+        position=pl.position,
+        team=pl.team,
+        projected_points=stat_rows[-1].projected_points if stat_rows else None,
+        college=sleeper_profile.get("college"),
+        years_exp=(
+            int(sleeper_profile["years_exp"])
+            if sleeper_profile.get("years_exp") not in (None, "")
+            else None
+        ),
+        age=(
+            int(sleeper_profile["age"])
+            if sleeper_profile.get("age") not in (None, "")
+            else None
+        ),
+        injury_status=sleeper_profile.get("injury_status"),
+    )
+
+
+def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
+    """Load weekly stat rows and return the standard stats detail payload."""
+    stat_rows = db.scalars(
         select(PlayerStat)
-        .where(PlayerStat.player_id == player_id)
+        .where(PlayerStat.player_id == pl.id)
         .order_by(PlayerStat.season, PlayerStat.week)
     ).all()
-    sleeper_profile = _get_sleeper_players_map().get(pl.sleeper_id, {})
     return PlayerStatsDetailOut(
-        player=PlayerOut(
-            id=pl.id,
-            sleeper_id=pl.sleeper_id,
-            name=pl.name,
-            position=pl.position,
-            team=pl.team,
-            projected_points=rows[-1].projected_points if rows else None,
-            college=sleeper_profile.get("college"),
-            years_exp=(
-                int(sleeper_profile["years_exp"])
-                if sleeper_profile.get("years_exp") not in (None, "")
-                else None
-            ),
-            age=(
-                int(sleeper_profile["age"])
-                if sleeper_profile.get("age") not in (None, "")
-                else None
-            ),
-            injury_status=sleeper_profile.get("injury_status"),
-        ),
+        player=_player_profile_out(pl, stat_rows),
         stats=[
             PlayerStatHistory(
                 week=s.week,
@@ -537,9 +538,57 @@ def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDe
                 points=s.points,
                 projected_points=s.projected_points,
             )
-            for s in rows
+            for s in stat_rows
         ],
     )
+
+
+def _ensure_player_for_sleeper(db: Session, sleeper_id: str) -> Player:
+    """Return an existing Player row or create one from the Sleeper players map."""
+    normalized = str(sleeper_id).strip()
+    if not normalized:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    pl = db.scalar(select(Player).where(Player.sleeper_id == normalized))
+    if pl:
+        return pl
+
+    profile = _get_sleeper_players_map().get(normalized)
+    if not profile or not isinstance(profile, dict) or profile.get("active") is False:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    pos = profile.get("position") or ""
+    name = profile.get("full_name") or (
+        f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip()
+        or normalized
+    )
+    team = profile.get("team")
+    pl = Player(
+        sleeper_id=normalized,
+        name=name,
+        position=pos,
+        team=team,
+    )
+    db.add(pl)
+    db.commit()
+    db.refresh(pl)
+    return pl
+
+
+@router.get("/sleeper/{sleeper_id}/stats", response_model=PlayerStatsDetailOut)
+def player_stats_by_sleeper(sleeper_id: str, db: Session = Depends(get_db)) -> PlayerStatsDetailOut:
+    """Weekly stats for a player resolved by Sleeper id (creates DB row if missing)."""
+    pl = _ensure_player_for_sleeper(db, sleeper_id)
+    return _player_stats_detail_out(db, pl)
+
+
+@router.get("/{player_id}/stats", response_model=PlayerStatsDetailOut)
+def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDetailOut:
+    """Weekly stats and projections history for a single player."""
+    pl = db.get(Player, player_id)
+    if not pl:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return _player_stats_detail_out(db, pl)
 
 
 @router.get("/season-leaders", response_model=PlayerLeadersOut)

@@ -52,7 +52,31 @@ def fetch_all_players(session: Session) -> int:
         return 0
 
     count = 0
-    fantasy_relevant = {"QB", "RB", "WR", "TE", "K", "DEF"}
+    fantasy_relevant = frozenset(
+        {
+            "QB",
+            "RB",
+            "WR",
+            "TE",
+            "K",
+            "DEF",
+            "LB",
+            "DL",
+            "DB",
+            "DE",
+            "DT",
+            "CB",
+            "SS",
+            "FS",
+            "S",
+            "SAF",
+            "OLB",
+            "ILB",
+            "MLB",
+            "NT",
+            "EDGE",
+        }
+    )
     for sleeper_id, payload in data.items():
         if not isinstance(payload, dict):
             continue

@@ -68,6 +68,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    const isDark = theme === "dark";
+    document.documentElement.style.backgroundColor = isDark ? "#020617" : "#ffffff";
+    document.body.style.backgroundColor = isDark ? "#020617" : "#ffffff";
     localStorage.setItem("theme", theme);
   }, [theme]);
 
