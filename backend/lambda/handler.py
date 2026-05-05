@@ -45,12 +45,18 @@ def _get_nfl_state() -> tuple[int, int]:
     season = int(data.get("season") or data.get("league_season") or os.getenv("NFL_SEASON", "2025"))
     week_raw = data.get("week")
     display_week = data.get("display_week")
-    if isinstance(week_raw, int) and week_raw > 0:
+    if isinstance(week_raw, int):
         week = week_raw
-    elif isinstance(display_week, int) and display_week > 0:
+    elif isinstance(display_week, int):
         week = display_week
     else:
         week = int(os.getenv("NFL_DEFAULT_WEEK", "1"))
+
+    # If it's offseason (week 0 or season hasn't started), use last season's final week
+    if week == 0 or week is None:
+        season = season - 1
+        week = 18  # last regular season week
+
     return season, week
 
 
