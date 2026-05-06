@@ -95,7 +95,7 @@ export default function Dashboard() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         {isQueryBusy(lineupQuery) ? (
-          <LoadingPanel label="Loading lineup…" />
+          <LoadingPanel label="Loading lineup…" topAligned />
         ) : lineupQuery.isError ? (
           <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
             <p className="text-lg text-slate-700 dark:text-slate-300">No lineup found for Week {week}.</p>

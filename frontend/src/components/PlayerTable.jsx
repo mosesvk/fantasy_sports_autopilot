@@ -83,7 +83,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
   };
 
   if (loading) {
-    return <LoadingPanel label="Loading players…" />;
+    return <LoadingPanel label="Loading players…" topAligned />;
   }
 
   return (

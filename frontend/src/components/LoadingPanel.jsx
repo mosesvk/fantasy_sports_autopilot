@@ -1,12 +1,14 @@
 /**
  * Card-style loading state with centered spinner, matching dashboard column shells.
- * @param {{ label?: string }} props Display label under the spinner (also used for accessibility).
+ * @param {{ label?: string, topAligned?: boolean }} props Display label under the spinner (also used for accessibility).
  * @returns {JSX.Element}
  */
-export default function LoadingPanel({ label = "Loading…" }) {
+export default function LoadingPanel({ label = "Loading…", topAligned = false }) {
   return (
     <div
-      className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-20 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-lg dark:shadow-blue-950/40"
+      className={`flex min-h-[280px] flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-lg dark:shadow-blue-950/40 ${
+        topAligned ? "justify-start pt-6 pb-6" : "justify-center py-20"
+      }`}
       role="status"
       aria-live="polite"
       aria-busy="true"

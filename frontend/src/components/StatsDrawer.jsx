@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { getPlayerStats, getPlayerStatsBySleeper } from "../api/client.js";
 import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
+import LoadingPanel from "./LoadingPanel.jsx";
 
 /** @typedef {{ key: string, label: string }} StatColumnDef */
 
@@ -265,9 +266,7 @@ export default function StatsDrawer({ playerId = null, sleeperId = null, onClose
 
         <div className="h-[calc(86vh-74px)] overflow-y-auto p-5">
           {statsQuery.isLoading ? (
-            <p className="text-slate-600 dark:text-slate-400">
-              Loading 2020–present game stats from Sleeper (first open can take a few seconds)...
-            </p>
+            <LoadingPanel label="Loading data..." />
           ) : statsQuery.isError ? (
             <p className="text-red-600 dark:text-red-300">Failed to load player stats.</p>
           ) : (

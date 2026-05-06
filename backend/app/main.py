@@ -22,7 +22,7 @@ _LAMBDA = _BACKEND / "lambda"
 if str(_LAMBDA) not in sys.path:
     sys.path.insert(0, str(_LAMBDA))
 
-from app.database import get_db  # noqa: E402
+from app.database import ensure_player_stats_actual_stats_column, get_db  # noqa: E402
 from app.routers import lineup, nfl_scoreboard, players  # noqa: E402
 
 app = FastAPI(title="LineupOS API", version="0.1.0")
@@ -45,6 +45,12 @@ app.add_middleware(
 app.include_router(lineup.router)
 app.include_router(players.router)
 app.include_router(nfl_scoreboard.router)
+
+
+@app.on_event("startup")
+def ensure_local_schema() -> None:
+    """Run small idempotent schema guards required by current API code."""
+    ensure_player_stats_actual_stats_column()
 
 
 @app.get("/health")
