@@ -10,7 +10,7 @@ from typing import Any
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from tenacity import (
@@ -706,12 +706,23 @@ def list_players(
     )
 
     projected_points = (
-        func.coalesce(requested_week_projected_points, latest_projected_points)
+        requested_week_projected_points
         if season is not None and week is not None
         else latest_projected_points
     )
 
     q = select(Player, projected_points.label("projected_points"))
+    if season is not None and week is not None:
+        # For explicit week/season views, only include players that have projections
+        # for that exact requested timeframe.
+        q = q.where(
+            exists(
+                select(PlayerStat.id)
+                .where(PlayerStat.player_id == Player.id)
+                .where(PlayerStat.season == season, PlayerStat.week == week)
+                .where(PlayerStat.projected_points.is_not(None))
+            )
+        )
     if position:
         q = q.where(Player.position == position.upper())
     q = q.order_by(Player.name)
