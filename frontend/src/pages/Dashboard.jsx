@@ -56,6 +56,11 @@ export default function Dashboard() {
     },
   });
 
+  const visiblePlayers =
+    weekMode === "current"
+      ? (playersQuery.data || []).filter((player) => !player?.is_retired)
+      : playersQuery.data || [];
+
   return (
     <div>
       <header className="mb-6 flex flex-wrap items-center gap-4">
@@ -118,7 +123,7 @@ export default function Dashboard() {
           </div>
         )}
         <PlayerTable
-          players={playersQuery.data || []}
+          players={visiblePlayers}
           loading={isQueryBusy(playersQuery)}
           onPlayerClick={(id) => setSelectedPlayerId(id)}
         />
