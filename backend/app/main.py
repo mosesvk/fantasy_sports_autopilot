@@ -25,7 +25,7 @@ if str(_LAMBDA) not in sys.path:
 from app.database import get_db  # noqa: E402
 from app.routers import lineup, players  # noqa: E402
 
-app = FastAPI(title="Fantasy Autopilot API", version="0.1.0")
+app = FastAPI(title="LineupOS API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,4 @@
-# Fantasy Sports Autopilot — Full Deployment Walkthrough
+# LineupOS — Full Deployment Walkthrough
 
 A complete guide to going from zero to a fully automated, cloud-deployed fantasy football pipeline. This covers Phase 1 (local development) and Phase 2 (AWS deploy) with every command, every concept, and every gotcha we hit along the way.
 
@@ -42,7 +42,7 @@ docker compose up -d
 - **Volume** — persistent storage that survives container restarts (your data doesn't disappear when you stop Docker)
 - **Port mapping** (`5432:5432`) — maps your Mac's port 5432 to the container's port 5432 so your app can reach it
 
-**Gotcha we hit:** Two Postgres containers running at the same time (Airflow also had one on port 5432). The fix was changing our fantasy Postgres to port 5433 in `docker-compose.yml`:
+**Gotcha we hit:** Two Postgres containers running at the same time (Airflow also had one on port 5432). The fix was changing our LineupOS Postgres to port 5433 in `docker-compose.yml`:
 
 ```yaml
 ports:
@@ -156,11 +156,11 @@ If you see this — **Phase 1 is done.** Your local pipeline is fully working.
 ```
 EventBridge (cron: every Tuesday 9am UTC)
     ↓
-Lambda Function (fantasy-autopilot)
+Lambda Function (lineup-os)
     ↓  fetches from
 Sleeper API
     ↓  stores in
-RDS PostgreSQL (fantasy-autopilot-db)
+RDS PostgreSQL (lineup-os-db)
 ```
 
 ### Prerequisites
@@ -180,7 +180,7 @@ Should return your `UserId`, `Account`, and `Arn`. If it errors, run `aws config
 
 ```bash
 aws iam create-role \
-  --role-name fantasy-autopilot-lambda-role \
+  --role-name lineup-os-lambda-role \
   --assume-role-policy-document '{
     "Version": "2012-10-17",
     "Statement": [{
@@ -195,7 +195,7 @@ Then attach the basic execution policy (allows Lambda to write logs to CloudWatc
 
 ```bash
 aws iam attach-role-policy \
-  --role-name fantasy-autopilot-lambda-role \
+  --role-name lineup-os-lambda-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 ```
 
@@ -212,7 +212,7 @@ No output = success.
 
 ```bash
 aws rds create-db-instance \
-  --db-instance-identifier fantasy-autopilot-db \
+  --db-instance-identifier lineup-os-db \
   --db-instance-class db.t3.micro \
   --engine postgres \
   --engine-version 15 \
@@ -228,7 +228,7 @@ This returns immediately but RDS takes **5-10 minutes** to provision. Check stat
 
 ```bash
 aws rds describe-db-instances \
-  --db-instance-identifier fantasy-autopilot-db \
+  --db-instance-identifier lineup-os-db \
   --query 'DBInstances[0].DBInstanceStatus'
 ```
 
@@ -236,7 +236,7 @@ Wait until you see `"available"`, then grab the endpoint:
 
 ```bash
 aws rds describe-db-instances \
-  --db-instance-identifier fantasy-autopilot-db \
+  --db-instance-identifier lineup-os-db \
   --query 'DBInstances[0].Endpoint.Address'
 ```
 
@@ -266,9 +266,9 @@ source .venv/bin/activate
 
 ```bash
 aws lambda create-function \
-  --function-name fantasy-autopilot \
+  --function-name lineup-os \
   --runtime python3.11 \
-  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/fantasy-autopilot-lambda-role \
+  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/lineup-os-lambda-role \
   --handler handler.lambda_handler \
   --zip-file fileb://lambda_function.zip \
   --timeout 300 \
@@ -304,7 +304,7 @@ cd lambda_package && zip -r ../lambda_function.zip . && cd ..
 
 # Redeploy
 aws lambda update-function-code \
-  --function-name fantasy-autopilot \
+  --function-name lineup-os \
   --zip-file fileb://lambda_function.zip
 ```
 
@@ -314,7 +314,7 @@ aws lambda update-function-code \
 
 ```bash
 aws lambda update-function-configuration \
-  --function-name fantasy-autopilot \
+  --function-name lineup-os \
   --environment "Variables={
     DATABASE_URL=postgresql://fantasyuser:localpassword@YOUR_RDS_ENDPOINT:5432/fantasy_db,
     SLEEPER_BASE_URL=https://api.sleeper.app/v1,
@@ -344,7 +344,7 @@ INFO  Running upgrade -> 001_initial, Initial schema: players, player_stats, lin
 ```bash
 # Get your RDS security group ID
 aws rds describe-db-instances \
-  --db-instance-identifier fantasy-autopilot-db \
+  --db-instance-identifier lineup-os-db \
   --query 'DBInstances[0].VpcSecurityGroups[0].VpcSecurityGroupId'
 
 # Open port 5432 to the world (fine for dev, lock it down for prod)
@@ -361,7 +361,7 @@ aws ec2 authorize-security-group-ingress \
 
 ```bash
 aws lambda invoke \
-  --function-name fantasy-autopilot \
+  --function-name lineup-os \
   --payload '{}' \
   --cli-binary-format raw-in-base64-out \
   response.json && cat response.json
@@ -378,7 +378,7 @@ Create the cron rule (every Tuesday at 9:00 UTC):
 
 ```bash
 aws events put-rule \
-  --name fantasy-autopilot-weekly \
+  --name lineup-os-weekly \
   --schedule-expression "cron(0 9 ? * TUE *)" \
   --state ENABLED
 ```
@@ -387,19 +387,19 @@ Give EventBridge permission to invoke your Lambda:
 
 ```bash
 aws lambda add-permission \
-  --function-name fantasy-autopilot \
+  --function-name lineup-os \
   --statement-id eventbridge-weekly \
   --action lambda:InvokeFunction \
   --principal events.amazonaws.com \
-  --source-arn arn:aws:events:us-east-1:YOUR_ACCOUNT_ID:rule/fantasy-autopilot-weekly
+  --source-arn arn:aws:events:us-east-1:YOUR_ACCOUNT_ID:rule/lineup-os-weekly
 ```
 
 Connect the rule to Lambda:
 
 ```bash
 aws events put-targets \
-  --rule fantasy-autopilot-weekly \
-  --targets "Id=fantasy-autopilot,Arn=arn:aws:lambda:us-east-1:YOUR_ACCOUNT_ID:function:fantasy-autopilot"
+  --rule lineup-os-weekly \
+  --targets "Id=lineup-os,Arn=arn:aws:lambda:us-east-1:YOUR_ACCOUNT_ID:function:lineup-os"
 ```
 
 `FailedEntryCount: 0` = success.

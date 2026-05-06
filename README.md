@@ -1,8 +1,8 @@
-# Fantasy Sports Autopilot
+# LineupOS
 
 Weekly fantasy football lineup automation with a production-style data pipeline and dashboard.
 
-Fantasy Sports Autopilot ingests Sleeper player data, stores weekly stats and projections, and generates optimized lineups on a schedule. It exposes the results through a FastAPI backend and a React dashboard for lineup review, player ranking, and historical stat inspection. The project demonstrates practical backend API design, scheduled data processing, relational modeling, and cloud deployment patterns that mirror real-world services.
+LineupOS ingests Sleeper player data, stores weekly stats and projections, and generates optimized lineups on a schedule. It exposes the results through a FastAPI backend and a React dashboard for lineup review, player ranking, and historical stat inspection. The project demonstrates practical backend API design, scheduled data processing, relational modeling, and cloud deployment patterns that mirror real-world services.
 
 ## Architecture
 
@@ -31,8 +31,8 @@ Sleeper API -> AWS Lambda -> PostgreSQL (RDS)
 ## Local Setup
 
 ```bash
-git clone https://github.com/mosesvk/fantasy_sports_autopilot.git
-cd fantasy_sports_autopilot
+git clone https://github.com/mosesvk/lineup_os.git
+cd lineup_os
 cp backend/.env.example backend/.env
 docker compose up -d
 cd backend
@@ -59,7 +59,7 @@ npm run dev
 ## Project Structure
 
 ```text
-fantasy_sports_autopilot/
+lineup_os/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py

@@ -1,1 +1,1 @@
-"""Fantasy Autopilot FastAPI application package."""
+"""LineupOS FastAPI application package."""

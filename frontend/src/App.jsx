@@ -182,7 +182,7 @@ export default function App() {
                 <div className="flex shrink-0 items-center gap-2">
                   <BrandChip>MVK</BrandChip>
                   <span className="hidden text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:inline">
-                    Fantasy Autopilot
+                    LineupOS
                   </span>
                 </div>
                 <nav

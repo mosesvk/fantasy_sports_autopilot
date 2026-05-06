@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  Scaffold for Fantasy Autopilot serverless stack.
+  Scaffold for LineupOS serverless stack.
   Expand with RDS, Lambda, EventBridge, and IAM resources.
 
 Parameters:
