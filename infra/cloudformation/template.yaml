@@ -4,6 +4,10 @@ Description: >
   Expand with RDS, Lambda, EventBridge, and IAM resources.
 
 Parameters:
+  RDSDBInstanceIdentifier:
+    Type: String
+    Default: lineup-os
+    Description: RDS DB instance identifier for the LineupOS environment.
   Placeholder:
     Type: String
     Default: unused
@@ -16,3 +20,6 @@ Outputs:
   Message:
     Description: Scaffold only — see README for AWS CLI examples.
     Value: OK
+  RDSDBInstanceIdentifier:
+    Description: Default RDS DB instance identifier for this stack scaffold.
+    Value: !Ref RDSDBInstanceIdentifier
