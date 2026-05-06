@@ -16,6 +16,13 @@ import requests
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.models import Player, PlayerStat
 
@@ -30,6 +37,33 @@ def _sleep_rate_limit() -> None:
     time.sleep(REQUEST_DELAY_S)
 
 
+def _is_retryable_sleeper_exception(exc: BaseException) -> bool:
+    """Retry Sleeper calls on timeout or selected transient HTTP statuses."""
+    if isinstance(exc, requests.Timeout):
+        return True
+    if isinstance(exc, requests.HTTPError):
+        status_code = exc.response.status_code if exc.response is not None else None
+        return status_code in {429, 500, 502, 503}
+    return False
+
+
+def _log_retry_attempt(retry_state: RetryCallState) -> None:
+    """Log each retry attempt with URL and attempt number."""
+    url = retry_state.args[0] if retry_state.args else "unknown-url"
+    logger.warning(
+        "Retrying Sleeper request url=%s attempt=%s",
+        url,
+        retry_state.attempt_number,
+    )
+
+
+@retry(
+    retry=retry_if_exception(_is_retryable_sleeper_exception),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    stop=stop_after_attempt(3),
+    before_sleep=_log_retry_attempt,
+    reraise=True,
+)
 def _get_json(url: str) -> Any:
     """GET JSON with basic error handling."""
     _sleep_rate_limit()

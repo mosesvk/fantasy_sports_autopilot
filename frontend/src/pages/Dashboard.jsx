@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllPlayers, getCurrentLineup, getLineupByWeek } from "../api/client.js";
 import LineupCard from "../components/LineupCard.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import PlayerTable from "../components/PlayerTable.jsx";
 import StatsDrawer from "../components/StatsDrawer.jsx";
 import WeekSelector from "../components/WeekSelector.jsx";
+import { getDefaultNflSeasonYear } from "../utils/nflSeasons.js";
 
 /**
  * Main dashboard: current or historical lineup plus player table.
@@ -12,9 +14,20 @@ import WeekSelector from "../components/WeekSelector.jsx";
  */
 export default function Dashboard() {
   const [weekMode, setWeekMode] = useState("current");
-  const [season, setSeason] = useState(2025);
+  const [season, setSeason] = useState(() => getDefaultNflSeasonYear());
   const [week, setWeek] = useState(1);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+
+  /**
+   * True while we should show a loading shell instead of content or empty states.
+   * Uses `isSuccess` so we still show a spinner in brief React Query windows where
+   * `isPending` and `isFetching` are both false but the query has not succeeded yet.
+   * When a query has already succeeded, `isFetching` alone drives loading (e.g. refetch, new key).
+   * @param {{ isError: boolean, isSuccess: boolean, isFetching: boolean }} query React Query result
+   * @returns {boolean}
+   */
+  const isQueryBusy = (query) =>
+    !query.isError && (!query.isSuccess || query.isFetching);
 
   const lineupQuery = useQuery({
     queryKey:
@@ -81,10 +94,8 @@ export default function Dashboard() {
       </header>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        {lineupQuery.isLoading ? (
-          <div className="flex items-center justify-center rounded-xl border border-slate-200 bg-white py-20 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-          </div>
+        {isQueryBusy(lineupQuery) ? (
+          <LoadingPanel label="Loading lineup…" />
         ) : lineupQuery.isError ? (
           <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
             <p className="text-lg text-slate-700 dark:text-slate-300">No lineup found for Week {week}.</p>
@@ -93,15 +104,22 @@ export default function Dashboard() {
               browse player projections on the right.
             </p>
           </div>
-        ) : (
+        ) : lineupQuery.data ? (
           <LineupCard
             lineup={lineupQuery.data}
             onPlayerClick={(id) => setSelectedPlayerId(id)}
           />
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+            <p className="text-lg text-slate-700 dark:text-slate-300">No lineup data for this week.</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-500">
+              Try another week or check that the API returned a lineup payload.
+            </p>
+          </div>
         )}
         <PlayerTable
           players={playersQuery.data || []}
-          loading={playersQuery.isLoading}
+          loading={isQueryBusy(playersQuery)}
           onPlayerClick={(id) => setSelectedPlayerId(id)}
         />
       </div>

@@ -1,3 +1,5 @@
+import { getNflSeasonYearOptions } from "../utils/nflSeasons.js";
+
 /**
  * Simple week selector for historical lineup view.
  * @param {{
@@ -17,7 +19,7 @@ export default function WeekSelector({
   maxWeek = 18,
 }) {
   const weeks = Array.from({ length: maxWeek }, (_, i) => i + 1);
-  const seasons = Array.from({ length: 4 }, (_, i) => 2023 + i);
+  const seasons = getNflSeasonYearOptions();
 
   return (
     <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import LoadingPanel from "./LoadingPanel.jsx";
 import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
 
 /**
@@ -81,6 +82,10 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
     event.currentTarget.style.display = "none";
   };
 
+  if (loading) {
+    return <LoadingPanel label="Loading players…" />;
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -149,13 +154,7 @@ export default function PlayerTable({ players, loading, onPlayerClick }) {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="py-6 text-center text-slate-500 dark:text-slate-500">
-                  Loading players...
-                </td>
-              </tr>
-            ) : rowsForPage.length ? (
+            {rowsForPage.length ? (
               rowsForPage.map((p) => (
                 <tr
                   key={p.id}

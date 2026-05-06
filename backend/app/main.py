@@ -23,13 +23,20 @@ if str(_LAMBDA) not in sys.path:
     sys.path.insert(0, str(_LAMBDA))
 
 from app.database import get_db  # noqa: E402
-from app.routers import lineup, players  # noqa: E402
+from app.routers import lineup, nfl_scoreboard, players  # noqa: E402
 
 app = FastAPI(title="LineupOS API", version="0.1.0")
 
+cors_origins_raw = os.getenv("CORS_ORIGINS", "")
+cors_origins = (
+    [origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()]
+    if cors_origins_raw.strip()
+    else ["http://localhost:5173", "http://localhost:3000"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +44,7 @@ app.add_middleware(
 
 app.include_router(lineup.router)
 app.include_router(players.router)
+app.include_router(nfl_scoreboard.router)
 
 
 @app.get("/health")

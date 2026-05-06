@@ -1,21 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Dashboard from "./pages/Dashboard.jsx";
 import RankingsTab from "./components/RankingsTab.jsx";
 import StatsTab from "./components/StatsTab.jsx";
+import ScoresTab from "./components/ScoresTab.jsx";
+import ScheduleTab from "./components/ScheduleTab.jsx";
 import { NFL_LEAGUE_LOGO_URL_ESPN, NFL_LEAGUE_LOGO_URL_WIKI } from "./utils/media.js";
 
-const TABS = [
+const BASE_TABS = [
   { id: "main", label: "Home" },
   { id: "stats", label: "Stats" },
   { id: "rankings", label: "Rankings" },
+];
+
+const NFL_EXTRA_TABS = [
+  { id: "scores", label: "Scores" },
+  { id: "schedule", label: "Schedule" },
 ];
 
 const TOP_LEAGUES = [
   { id: "nfl", label: "NFL" },
   { id: "nba", label: "NBA" },
 ];
-
-const SUB_NAV_DECOR = ["Scores", "Schedule", "Standings", "Fantasy"];
 
 /**
  * Renders a sun icon for light mode actions.
@@ -156,6 +161,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("main");
   const [activeLeague, setActiveLeague] = useState(/** @type {"nfl" | "nba"} */ ("nfl"));
 
+  const mainNavTabs = useMemo(
+    () => (activeLeague === "nfl" ? [...BASE_TABS, ...NFL_EXTRA_TABS] : BASE_TABS),
+    [activeLeague],
+  );
+
+  useEffect(() => {
+    if (activeLeague !== "nfl" && (activeTab === "scores" || activeTab === "schedule")) {
+      setActiveTab("main");
+    }
+  }, [activeLeague, activeTab]);
+
   /**
    * Toggle active app theme between light and dark mode.
    * @returns {void}
@@ -246,7 +262,7 @@ export default function App() {
                   className="flex flex-wrap items-center gap-1 sm:gap-0"
                   aria-label="Main navigation"
                 >
-                  {TABS.map((tab) => {
+                  {mainNavTabs.map((tab) => {
                     const isActive = activeTab === tab.id;
                     return (
                       <button
@@ -269,17 +285,6 @@ export default function App() {
                       </button>
                     );
                   })}
-                  {activeLeague === "nfl"
-                    ? SUB_NAV_DECOR.map((label) => (
-                        <span
-                          key={label}
-                          className="hidden cursor-default px-3 py-2 text-sm text-slate-400 lg:inline dark:text-slate-600"
-                          aria-hidden="true"
-                        >
-                          {label}
-                        </span>
-                      ))
-                    : null}
                 </nav>
               </div>
               <p className="max-w-md text-right text-xs leading-snug text-slate-500 dark:text-slate-400">
@@ -293,6 +298,8 @@ export default function App() {
           {activeTab === "main" ? <Dashboard /> : null}
           {activeTab === "stats" ? <StatsTab /> : null}
           {activeTab === "rankings" ? <RankingsTab /> : null}
+          {activeTab === "scores" ? <ScoresTab /> : null}
+          {activeTab === "schedule" ? <ScheduleTab /> : null}
         </main>
       </div>
     </div>

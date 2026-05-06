@@ -55,6 +55,7 @@ class PlayerStat(Base):
     points: Mapped[float | None] = mapped_column(Float, nullable=True)
     projected_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     projections: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    actual_stats: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     player: Mapped["Player"] = relationship("Player", back_populates="stats")
 

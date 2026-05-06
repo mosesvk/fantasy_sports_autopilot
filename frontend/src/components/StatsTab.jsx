@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAllPlayers, getSeasonLeaders } from "../api/client.js";
 import StatsDrawer from "./StatsDrawer.jsx";
 import { getPlayerHeadshotUrl, getTeamLogoUrl } from "../utils/media.js";
+import { getDefaultNflSeasonYear, getNflSeasonYearOptions } from "../utils/nflSeasons.js";
 
 /**
  * Build a deterministic player portrait URL from player name.
@@ -40,7 +41,6 @@ const statRowTeamLabel = (row) => {
 const normalizeName = (value) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const MAIN_STAT_TABS = ["Offense", "Defense", "Scoring", "Special Teams"];
-const AVAILABLE_SEASONS = [2025, 2024, 2023, 2022, 2021, 2020];
 const SEASON_SPLITS = ["Regular Season", "Postseason"];
 const CONFERENCE_FILTERS = ["All NFL", "AFC", "NFC"];
 
@@ -668,7 +668,7 @@ function PlayerStatsSheet({
           onChange={(event) => onSeasonChange(Number(event.target.value))}
           className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
         >
-          {AVAILABLE_SEASONS.map((year) => (
+          {getNflSeasonYearOptions().map((year) => (
             <option key={year} value={year}>
               {year}
             </option>
@@ -842,7 +842,7 @@ export default function StatsTab() {
   const [statsDrawerSleeperId, setStatsDrawerSleeperId] = useState(null);
   const [selectedMainTab, setSelectedMainTab] = useState("Offense");
   const [selectedStatType, setSelectedStatType] = useState("passing");
-  const [selectedSeason, setSelectedSeason] = useState(2025);
+  const [selectedSeason, setSelectedSeason] = useState(() => getDefaultNflSeasonYear());
   const [selectedSplit, setSelectedSplit] = useState("Regular Season");
   const [selectedConferenceFilter, setSelectedConferenceFilter] = useState("All NFL");
 
@@ -1029,7 +1029,7 @@ export default function StatsTab() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/80">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-            NFL Stat Leaders 2025
+            NFL Stat Leaders {getDefaultNflSeasonYear()}
           </h2>
           <button
             type="button"
@@ -1044,7 +1044,7 @@ export default function StatsTab() {
             type="button"
             className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
           >
-            2025 Regular Season
+            {getDefaultNflSeasonYear()} Regular Season
           </button>
         </div>
         <div className="grid gap-6 lg:grid-cols-2">

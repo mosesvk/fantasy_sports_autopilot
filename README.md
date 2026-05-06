@@ -36,14 +36,51 @@ cd lineup_os
 cp backend/.env.example backend/.env
 docker compose up -d
 cd backend
-python -m venv .venv
+/opt/homebrew/bin/python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt -r requirements-dev.txt
 alembic upgrade head
 python scripts/seed_db.py
 uvicorn app.main:app --reload
 cd ../frontend
 npm install
+npm run dev
+```
+
+## Starting Services After Initial Setup
+
+If Docker, Python dependencies, and npm packages are already installed, use these commands to start everything again:
+
+```bash
+# from repo root
+docker compose up -d
+```
+
+Backend API:
+
+```bash
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+If backend commands fail after a restart (for example `uvicorn: command not found` or `bad interpreter`), recreate the backend virtual environment:
+
+```bash
+cd backend
+rm -rf .venv
+/opt/homebrew/bin/python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt -r requirements-dev.txt
+uvicorn app.main:app --reload
+```
+
+Frontend dashboard (new terminal):
+
+```bash
+cd frontend
 npm run dev
 ```
 

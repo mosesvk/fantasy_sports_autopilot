@@ -2,21 +2,31 @@
 
 import os
 import threading
+import logging
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.database import get_db
 from app.models import Player, PlayerStat
 from app.schemas import LeaderColumnOut, PlayerLeadersOut, PlayerOut, PlayerStatHistory, PlayerStatsDetailOut
 
 router = APIRouter(prefix="/api/players", tags=["players"])
+logger = logging.getLogger(__name__)
 SLEEPER_BASE = os.getenv("SLEEPER_BASE_URL", "https://api.sleeper.app/v1")
 SLEEPER_CACHE_TTL = timedelta(hours=6)
 _sleeper_players_cache: dict[str, dict] = {}
@@ -27,7 +37,9 @@ _week_stats_lock = threading.Lock()
 
 PLAYER_HISTORY_START_SEASON = 2020
 PLAYER_HISTORY_MAX_SEASON = 2035
-PLAYER_HISTORY_FETCH_WORKERS = int(os.getenv("PLAYER_HISTORY_FETCH_WORKERS", "12"))
+# Sleeper soft-throttles bursty traffic; 4 workers keeps history fetches fast
+# while reducing the chance of getting blocked or heavily delayed.
+PLAYER_HISTORY_FETCH_WORKERS = int(os.getenv("PLAYER_HISTORY_FETCH_WORKERS", "4"))
 
 # Sleeper still marks some clearly retired players as Active with no NFL team; supplement with ids.
 _RETIRED_ACTIVE_EXTRA_IDS: frozenset[str] = frozenset(
@@ -306,6 +318,43 @@ _CATEGORY_AGGREGATORS = {
 }
 
 
+def _is_retryable_sleeper_exception(exc: BaseException) -> bool:
+    """Retry Sleeper calls on timeout or selected transient HTTP statuses."""
+    if isinstance(exc, requests.Timeout):
+        return True
+    if isinstance(exc, requests.HTTPError):
+        status_code = exc.response.status_code if exc.response is not None else None
+        return status_code in {429, 500, 502, 503}
+    return False
+
+
+def _retry_url_from_state(retry_state: RetryCallState) -> str:
+    """Best-effort URL extraction for retry logs."""
+    fn_name = retry_state.fn.__name__ if retry_state.fn is not None else ""
+    if fn_name == "_get_sleeper_players_map":
+        return f"{SLEEPER_BASE}/players/nfl"
+    if fn_name == "_fetch_week_stats" and len(retry_state.args) >= 3:
+        season_type, season, week = retry_state.args[:3]
+        return f"{SLEEPER_BASE}/stats/nfl/{season_type}/{season}/{week}"
+    return "unknown-url"
+
+
+def _log_retry_attempt(retry_state: RetryCallState) -> None:
+    """Log each retry attempt with URL and attempt number."""
+    logger.warning(
+        "Retrying Sleeper request url=%s attempt=%s",
+        _retry_url_from_state(retry_state),
+        retry_state.attempt_number,
+    )
+
+
+@retry(
+    retry=retry_if_exception(_is_retryable_sleeper_exception),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    stop=stop_after_attempt(3),
+    before_sleep=_log_retry_attempt,
+    reraise=True,
+)
 def _get_sleeper_players_map() -> dict[str, dict]:
     """Fetch and cache Sleeper player payloads keyed by sleeper_id."""
     global _sleeper_players_cache
@@ -402,6 +451,13 @@ def _sleeper_player_is_retired(sleeper_id: str, profile: dict | None) -> bool:
     return False
 
 
+@retry(
+    retry=retry_if_exception(_is_retryable_sleeper_exception),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    stop=stop_after_attempt(3),
+    before_sleep=_log_retry_attempt,
+    reraise=True,
+)
 def _fetch_week_stats(season_type: str, season: int, week: int) -> dict[str, dict]:
     """Fetch and cache one week of Sleeper stats."""
     cache_key = f"{season_type}:{season}:{week}"
@@ -716,6 +772,36 @@ def _player_profile_out(pl: Player, stat_rows: list[PlayerStat]) -> PlayerOut:
     )
 
 
+def _has_cached_actual_stats_for_current_season(stat_rows: list[PlayerStat]) -> bool:
+    """Whether DB already has Sleeper actual stats for the current season."""
+    current_season = _history_season_end_year()
+    return any(
+        row.season == current_season and row.actual_stats is not None
+        for row in stat_rows
+    )
+
+
+def _upsert_actual_stats_history(
+    db: Session, player_id: int, sleeper_hist: list[PlayerStatHistory]
+) -> None:
+    """Store Sleeper actual_stats in player_stats for future cache hits."""
+    for item in sleeper_hist:
+        if item.actual_stats is None:
+            continue
+        stmt = pg_insert(PlayerStat).values(
+            player_id=player_id,
+            season=item.season,
+            week=item.week,
+            actual_stats=item.actual_stats,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["player_id", "week", "season"],
+            set_={"actual_stats": stmt.excluded.actual_stats},
+        )
+        db.execute(stmt)
+    db.commit()
+
+
 def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
     """Load weekly stat rows and return the standard stats detail payload."""
     stat_rows = db.scalars(
@@ -725,6 +811,22 @@ def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
     ).all()
     db_map = {(r.season, r.week): r for r in stat_rows}
 
+    if _has_cached_actual_stats_for_current_season(stat_rows):
+        merged_stats = [
+            PlayerStatHistory(
+                week=s.week,
+                season=s.season,
+                points=s.points,
+                projected_points=s.projected_points,
+                actual_stats=s.actual_stats,
+            )
+            for s in stat_rows
+        ]
+        return PlayerStatsDetailOut(
+            player=_player_profile_out(pl, stat_rows),
+            stats=merged_stats,
+        )
+
     merged_stats: list[PlayerStatHistory] = []
     try:
         sleeper_hist = _sleeper_weekly_player_stat_history(pl.sleeper_id)
@@ -732,6 +834,14 @@ def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
         sleeper_hist = []
 
     if sleeper_hist:
+        _upsert_actual_stats_history(db, pl.id, sleeper_hist)
+        refreshed_rows = db.scalars(
+            select(PlayerStat)
+            .where(PlayerStat.player_id == pl.id)
+            .order_by(PlayerStat.season, PlayerStat.week)
+        ).all()
+        db_map = {(r.season, r.week): r for r in refreshed_rows}
+        stat_rows = refreshed_rows
         for sh in sleeper_hist:
             db_r = db_map.get((sh.season, sh.week))
             merged_stats.append(
@@ -740,7 +850,7 @@ def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
                     week=sh.week,
                     points=sh.points if sh.points is not None else (db_r.points if db_r else None),
                     projected_points=db_r.projected_points if db_r else sh.projected_points,
-                    actual_stats=sh.actual_stats,
+                    actual_stats=(db_r.actual_stats if db_r else sh.actual_stats),
                 )
             )
     else:
@@ -750,7 +860,7 @@ def _player_stats_detail_out(db: Session, pl: Player) -> PlayerStatsDetailOut:
                 season=s.season,
                 points=s.points,
                 projected_points=s.projected_points,
-                actual_stats=None,
+                actual_stats=s.actual_stats,
             )
             for s in stat_rows
         ]
@@ -812,11 +922,16 @@ def player_stats(player_id: int, db: Session = Depends(get_db)) -> PlayerStatsDe
 @router.get("/season-leaders", response_model=PlayerLeadersOut)
 def season_leaders(
     category: str = Query(default="passing"),
-    season: int = Query(default=2025, ge=2020, le=2035),
+    season: int | None = Query(
+        default=None,
+        ge=PLAYER_HISTORY_START_SEASON,
+        le=PLAYER_HISTORY_MAX_SEASON,
+    ),
     split: str = Query(default="regular", pattern="^(regular|postseason)$"),
     conference: str = Query(default="all", pattern="^(all|afc|nfc)$"),
 ) -> PlayerLeadersOut:
     """Aggregate season leaders from Sleeper weekly stats for selected category."""
+    season_year = season if season is not None else date.today().year
     normalized_category = category.lower()
     if normalized_category not in LEADER_CATEGORY_CONFIG:
         raise HTTPException(status_code=400, detail="Unsupported leaders category")
@@ -827,7 +942,7 @@ def season_leaders(
 
     weekly_stats_by_sleeper: dict[str, list[dict]] = {}
     for week in week_range:
-        weekly_payload = _fetch_week_stats(season_type, season, week)
+        weekly_payload = _fetch_week_stats(season_type, season_year, week)
         for sleeper_id, stat_blob in weekly_payload.items():
             if not isinstance(stat_blob, dict):
                 continue

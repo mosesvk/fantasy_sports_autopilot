@@ -61,3 +61,54 @@ export const getPlayerStatsBySleeper = (sleeperId) =>
  */
 export const getSeasonLeaders = (params) =>
   api.get("/api/players/season-leaders", { params });
+
+/**
+ * Live NFL scoreboard for one week (proxied via FastAPI; sources ESPN by default).
+ * @param {number} season League year (e.g. 2025)
+ * @param {number} week Schedule week (1–18 regular)
+ * @param {number} [seasontype=2] ESPN season type (2 = regular season)
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getNflScoreboard = (season, week, seasontype = 2) =>
+  api.get("/api/nfl/scoreboard", {
+    params: { season, week, seasontype },
+  });
+
+/**
+ * Box score + play-by-play for one ESPN event id (normalized by FastAPI).
+ * @param {string} gameId Numeric ESPN game / event id
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getNflGameDetail = (gameId) =>
+  api.get(`/api/nfl/games/${encodeURIComponent(gameId)}/detail`);
+
+/**
+ * Live NFL standings (regular or postseason) via FastAPI.
+ * @param {number} season League year
+ * @param {number} [seasontype=2] 2 regular, 3 postseason
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getNflStandings = (season, seasontype = 2) =>
+  api.get("/api/nfl/standings", { params: { season, seasontype } });
+
+/**
+ * Super Bowl champions by season (ESPN when reliable, else verified fallback).
+ * @param {number} [fromSeason=2020]
+ * @param {number} [toSeason] defaults to server max
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getNflChampionships = (fromSeason = 2020, toSeason) =>
+  api.get("/api/nfl/championships", {
+    params: { from_season: fromSeason, ...(toSeason != null ? { to_season: toSeason } : {}) },
+  });
+
+/**
+ * Full team schedule for one league year.
+ * @param {string} teamAbbr e.g. BUF
+ * @param {number} season League year
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getNflTeamSchedule = (teamAbbr, season) =>
+  api.get(`/api/nfl/teams/${encodeURIComponent(teamAbbr)}/schedule`, {
+    params: { season },
+  });
